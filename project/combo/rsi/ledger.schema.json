@@ -1,0 +1,81 @@
+{
+  "schema_version": "s1-ledger-1",
+  "domain": "D0",
+  "status": "draft",
+  "baseline_hash": "bc79e113f3960f373e693a75624df0a6a67a3c04471019540fbdcc7dd976d552",
+  "ledger": {
+    "append_only": true,
+    "r6_same_generation_unique": true,
+    "row_fields": [
+      "generation",
+      "pi_version",
+      "verdict",
+      "exit_code",
+      "metrics",
+      "evidence_hash",
+      "prev_anchor_hash",
+      "anchor_hash",
+      "reconstructed"
+    ],
+    "row_schema": {
+      "generation": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "pi_version": {
+        "type": "string"
+      },
+      "verdict": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "fail",
+          "drafted"
+        ]
+      },
+      "exit_code": {
+        "type": "integer"
+      },
+      "metrics": {
+        "type": "object"
+      },
+      "evidence_hash": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "prev_anchor_hash": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "anchor_hash": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "reconstructed": {
+        "type": "boolean"
+      }
+    },
+    "constraints": {
+      "append_only": true,
+      "r6_same_generation_unique": true,
+      "first_row_prev_anchor_hash": "baseline_hash",
+      "prev_anchor_hash_chain": "prev_anchor_hash[n] == anchor_hash[n-1]",
+      "required_fields": [
+        "generation",
+        "pi_version",
+        "verdict",
+        "exit_code",
+        "metrics",
+        "evidence_hash",
+        "prev_anchor_hash",
+        "anchor_hash",
+        "reconstructed"
+      ]
+    },
+    "rows": []
+  },
+  "final_line": "S1 verdict: drafted."
+}

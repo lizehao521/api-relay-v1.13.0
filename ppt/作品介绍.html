@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>api-relay 作品介绍 v1.13.0</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1b212a; --border:#30363d;
+    --fg:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --err:#f85149; --pur:#bc8cff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  html,body{ background:#000; color:var(--fg); font-family: system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .slide{
+    width:13.333in; height:7.5in; background:var(--bg);
+    padding:0.75in 0.9in; position:relative; page-break-after:always; overflow:hidden;
+  }
+  .slide:last-child{ page-break-after:auto; }
+  .foot{ position:absolute; left:0.9in; right:0.9in; bottom:0.42in; display:flex; justify-content:space-between;
+         color:var(--dim); font-size:13px; border-top:1px solid var(--border); padding-top:8px; }
+  .foot .v{ font-family:var(--mono); }
+  h1{ font-size:52px; font-weight:700; letter-spacing:-0.02em; }
+  h2{ font-size:32px; font-weight:650; letter-spacing:-0.01em; }
+  h2 .tag{ font-size:15px; color:var(--pur); border:1px solid var(--pur); border-radius:999px; padding:2px 10px; margin-left:12px; vertical-align:middle; }
+  .lead{ color:var(--dim); font-size:18px; margin-top:10px; line-height:1.6; }
+  .bar{ width:56px; height:4px; background:var(--accent); border-radius:2px; margin:14px 0 22px; }
+  ul{ list-style:none; }
+  li{ font-size:17px; line-height:1.75; margin:10px 0; padding-left:22px; position:relative; }
+  li:before{ content:""; position:absolute; left:0; top:11px; width:8px; height:8px; border-radius:2px; background:var(--accent); }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  .three{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+  .card .k{ font-size:13px; color:var(--dim); letter-spacing:.04em; }
+  .card .t{ font-size:20px; font-weight:650; margin:6px 0 8px; }
+  .card p{ font-size:15px; color:var(--fg); line-height:1.6; }
+  .num{ font-family:var(--mono); font-size:34px; font-weight:700; }
+  .accent{ color:var(--accent); } .ok{ color:var(--ok); } .warn{ color:var(--warn); } .err{ color:var(--err); } .pur{ color:var(--pur); } .dim{ color:var(--dim); }
+  .mono{ font-family:var(--mono); }
+  .quote{ border-left:3px solid var(--warn); background:var(--panel2); padding:14px 18px; border-radius:0 10px 10px 0; color:var(--dim); font-size:16px; line-height:1.7; }
+  table{ width:100%; border-collapse:collapse; font-size:15px; }
+  th,td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); }
+  th{ color:var(--dim); font-size:12px; letter-spacing:.06em; text-transform:uppercase; }
+  .kv{ display:flex; gap:34px; margin-top:10px; }
+  .kv .item .n{ font-family:var(--mono); font-size:40px; font-weight:700; color:var(--accent); }
+  .kv .item .l{ color:var(--dim); font-size:14px; margin-top:4px; }
+  .flow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .flow .n{ background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:14px; }
+  .flow .a{ color:var(--accent); }
+  .badge{ display:inline-block; font-size:12px; color:var(--dim); border:1px solid var(--border); border-radius:999px; padding:2px 9px; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<!-- P1 封面 -->
+<section class="slide">
+  <div style="margin-top:1.1in">
+    <div class="mono dim" style="font-size:15px; letter-spacing:.35em;">A P I &nbsp; R E L A Y</div>
+    <h1 style="margin-top:14px;">api-relay</h1>
+    <h2 style="font-weight:400; color:var(--dim); font-size:26px; margin-top:6px;">智能体基础设施层 · OpenAI 兼容的模型 API 聚合中转站</h2>
+    <div class="bar" style="margin-top:26px;"></div>
+    <p style="font-size:22px;">它卖的不是 token，是「<span class="accent">错误对 Agent 可执行</span>」</p>
+    <p class="dim" style="font-size:16px; margin-top:8px;">成功响应逐字节透传 · 错误路径翻译成可执行动作</p>
+    <p class="pur" style="font-size:17px; margin-top:14px;">做所有 Agent 都要站的那层地基　·　错误可执行 · 数据可信 · 损耗可度量</p>
+    <p class="accent" style="font-size:15px; margin-top:10px;">组合方案：api-relay（底座 :8787）＋ CodeLens（工作台 :8788）已在同一台华为云 ECS 上线</p>
+    <p class="dim" style="margin-top:34px; font-size:16px;">队伍：<b class="mono">落幕</b>　｜　<span class="mono">v1.13.0</span>　｜　li1119489753@outlook.com</p>
+    <p class="pur" style="margin-top:8px; font-size:14px;">2026 华为开发者大赛 · 智能体创新赛 · 作品答辩</p>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">01 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P2 场景分析① -->
+<section class="slide">
+  <h2>场景分析 ① <span class="tag">传话层的损耗，没人负责</span></h2>
+  <div class="bar"></div>
+  <div class="quote">「为防止滥用，平台对 400 类请求失败有惩罚措施：一次 400 错误会消耗数倍的限流配额，请勿反复重试。」<br><span style="font-size:13px;">—— 国内某头部中转平台官方文档（原文引用）</span></div>
+  <p style="margin:20px 0 6px; font-size:18px;">痛点一句话：<b class="warn">失败有成本，但没人把成本告诉用户</b></p>
+  <ul>
+    <li>Agent = 模型 <span class="dim">↔</span> 环境的传话层；中转站 = 客户端 <span class="dim">↔</span> 上游的传话层</li>
+    <li>错误码各家有各家的<b>方言</b>；Agent 拿到 429 不知道该退避还是换 key</li>
+    <li>损耗<b>没有基线、无法度量、无人优化</b></li>
+  </ul>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">02 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P3 场景分析② -->
+<section class="slide">
+  <h2>场景分析 ② <span class="tag">谁在承担这个成本</span></h2>
+  <div class="bar"></div>
+  <div class="three">
+    <div class="card"><div class="k">开发者</div><div class="t">AI 应用开发者</div><p>错误处理代码占业务代码可观比例，且各上游方言不一致；重试逻辑每家重写一遍。</p></div>
+    <div class="card"><div class="k">企业</div><div class="t">企业接入方</div><p>多厂商 key 的路由、限额、熔断、账目全部要自建；跨团队对账靠人肉。</p></div>
+    <div class="card" style="border-color:var(--warn);"><div class="k">现状</div><div class="t">现有方案的共同缺陷</div><p>只做「转发」——错误路径原样透传甚至吞掉；聚合站赛道已被验证，「<b class="warn">错误可执行化</b>」仍是空白。</p></div>
+  </div>
+  <div class="kv">
+    <div class="item"><div class="n">15</div><div class="l">类 failure_reason 归因字典</div></div>
+    <div class="item"><div class="n">11</div><div class="l">个 quick_action 可执行动作</div></div>
+    <div class="item"><div class="n">3</div><div class="l">段损耗治理（P2/P3/P8）</div></div>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">03 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P4 方案设计① -->
+<section class="slide">
+  <h2>方案设计 ① <span class="tag">降损三件套，建在核心链路</span></h2>
+  <div class="bar"></div>
+  <div class="three">
+    <div class="card"><div class="k">P2 · 调用前</div><div class="t accent">预检</div><p>上游之前拦下「必然被拒」的请求：畸形 <span class="mono">tool_calls</span>、超长输入……省一次往返与计费。</p></div>
+    <div class="card"><div class="k">P3 · 失败时</div><div class="t accent">归因</div><p class="mono" style="font-size:13px;">raw error → {failure_reason, suggested_next.action, recoverable, retryAfterMs}</p><p>15 类归因 × 11 个可执行动作。</p></div>
+    <div class="card"><div class="k">P8 · 持续</div><div class="t accent">量化</div><p>归因投递率 / 自动恢复 / 无效重试 / 治理层自身开销。没有度量就没有优化。</p></div>
+  </div>
+  <div class="quote" style="margin-top:22px;">关键区分：<span class="mono">429 + 余额不足 → quota_exhausted + top_up_balance</span>（不可重试）；余额不足回 <b>402 而非 429</b>——不让 Agent 浪费一次重试。</div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">04 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P5 方案设计② -->
+<section class="slide">
+  <h2>方案设计 ② <span class="tag">技术选型与刻意边界</span></h2>
+  <div class="bar"></div>
+  <table>
+    <thead><tr><th>层</th><th>选型</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>运行时</td><td class="mono">Node.js ≥22.5 + TypeScript 5.6 strict (ESM)</td><td>内置 <span class="mono">node:sqlite</span>，单二进制部署</td></tr>
+      <tr><td>运行时依赖</td><td><b class="ok">0 个</b></td><td>仅 <span class="mono">node:http/crypto/sqlite</span> + 全局 fetch；供应链攻击面为零</td></tr>
+      <tr><td>存储</td><td>SQLite（WAL，控制面）/ 内存（可切换）</td><td>账目可审计，断电不丢</td></tr>
+      <tr><td>前端</td><td>Preact + signals + Vite → 纯静态产物</td><td>3KB 框架，面板秒级刷新</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:20px; font-size:17px;">刻意不做（能说清边界的团队才可信）：</p>
+  <p style="margin-top:8px;"><span class="badge">✕ 不改写成功响应</span><span class="badge">✕ 不做响应缓存</span><span class="badge">✕ 不做 Agent 平台</span><span class="badge">✕ 不 fork AGPL 项目</span></p>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">05 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P6 核心功能① -->
+<section class="slide">
+  <h2>核心功能 ① <span class="tag">OpenAI 兼容网关</span></h2>
+  <div class="bar"></div>
+  <ul class="mono" style="font-size:15px;">
+    <li>POST&nbsp; /v1/chat/completions&nbsp;&nbsp;<span class="dim">（流式 SSE）</span></li>
+    <li>POST&nbsp; /v1/completions &nbsp;·&nbsp; GET&nbsp; /v1/models &nbsp;·&nbsp; GET&nbsp; /v1/embeddings</li>
+    <li>POST&nbsp; /v1/messages（Anthropic）、/v1/responses</li>
+  </ul>
+  <div class="two" style="margin-top:18px;">
+    <div class="card"><div class="t">信任原则</div><p><b class="accent">成功响应逐字节透传</b>——「我没有动你的数据」；降损只作用于错误路径，成功路径一个字节都不碰。</p></div>
+    <div class="card"><div class="t">多上游聚合</div><p>权重路由 · 熔断 · 指数退避+抖动 · 自动兜底；分层计费：free 层纯管道（错误体与上游字节一致）→ standard → pro（全归因）。</p></div>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">06 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P7 核心功能② -->
+<section class="slide">
+  <h2>核心功能 ② <span class="tag">内嵌管理面板（零配置）</span></h2>
+  <div class="bar"></div>
+  <ul>
+    <li><b>17 页</b>驾驶舱：总览 · 指标降损基线 · 速查 key 诊断 · 请求账本 · 排障 · 客户 Key · 上游 · 知识库 · <b class="pur">Agent</b> · 运维 · 信任</li>
+    <li>指标页：<b>归因投递率、自动恢复次数、无效重试计数</b>——损耗第一次可度量</li>
+    <li>速查页 whoami：贴入任意 key → 有效/无效/非本网关签发 + 完整层策略解释</li>
+    <li>key 只存指纹：<span class="mono">sha256("relay-key:"+key)</span> 前 8 位——带域前缀防彩虹表</li>
+    <li><b class="pur">内置 Agent</b>：自证闭环（读运营快照 → 调本网关 LLM → 只读工具取证 → 出运维建议 → 沉淀知识库 → 写审计）；本版完成 <b>L3→L4 升级方案 + 独立审查</b></li>
+    <li>demo 模式管理免令牌，<b>3 分钟从克隆到看见面板</b></li>
+  </ul>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">07 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P8 核心功能③ -->
+<section class="slide">
+  <h2>核心功能 ③ <span class="tag">客户端 SDK：一行重试</span></h2>
+  <div class="bar"></div>
+  <div class="two">
+    <div>
+      <pre class="mono" style="background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; font-size:13px; line-height:1.6; color:var(--fg); white-space:pre-wrap;">import { autoRetry } from "./src/client/auto-retry.js";
+// 可重试失败（限流/超时/5xx）自动按 retryAfterMs 退避+抖动重试
+const res = await autoRetry(url, {
+  headers: { Authorization: `Bearer ${key}` },
+  body: JSON.stringify({ model: "gpt-x", messages })
+});
+// 不可重试失败（quota_exhausted / auth_invalid …）立即抛出，错误自带归因卡片</pre>
+    </div>
+    <div class="three" style="grid-template-columns:1fr; gap:14px;">
+      <div class="card"><div class="k">15 项单测</div><p>退避 / 抖动 / abort / 归因解析全覆盖</p></div>
+      <div class="card"><div class="k">零依赖</div><p>仅内置 fetch，与网关同一约束</p></div>
+      <div class="card"><div class="k">一行接入</div><p>现有 fetch 调用改一个词即可迁移</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">08 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P9 平台化四件套（v1.11.0 落地 · v1.12.0 配置治理） -->
+<section class="slide">
+  <h2>核心功能 ④ <span class="tag">平台化四件套（v1.11.0 落地 · v1.12.0 配置治理）</span></h2>
+  <div class="bar"></div>
+  <div class="two">
+    <div>
+      <div class="card" style="margin-bottom:12px;"><div class="k">批次 1 · 多租户 / RBAC</div><div class="t accent">租户 + 角色</div><p>租户注册表（default + 自定义）· 角色矩阵（owner / operator / viewer）· 权限点细分（<span class="mono">billing.write</span> 与 <span class="mono">keys.write</span> 职责分离）· 租户谓词过滤 + 审计留痕。</p></div>
+      <div class="card"><div class="k">批次 2 · 计费账务</div><div class="t accent">账单可复算</div><p>套餐目录 PlanRegistry · 账单 bills · 对账 recon（可导出 CSV/JSON）——<b>计数 × 单价 = 金额，可复算</b>，跨团队对账不再人肉。</p></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px;"><div class="k">批次 3 · 分布式状态</div><div class="t accent">并发闸门原语</div><p>SharedStateStore 并发闸门 + 控制面文档持久化（<span class="mono">control_doc</span>）；engine / keys / pool 接入排队语义——<b>仅注入共享后端时生效，默认零回归</b>。</p></div>
+      <div class="card"><div class="k">批次 4 · 协议适配</div><div class="t accent">互译层 + 流式错误帧</div><p>adapters 互译层 + <b>REQ-03 流式 mid-stream error 帧</b>；Anthropic <span class="mono">/v1/messages</span>、Gemini <span class="mono">generateContent</span> 入站接线（opt-in，默认关闭）。</p></div>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:16px; font-size:15px;">落地即验证：新增 6 组单测（adapters / billing / tenant-rbac / control-persistence / concurrency-lease…），<b class="ok">npm test 505/505 全绿</b>；已部署至 <b class="ok">华为云 ECS 生产实例</b>。</p>
+  <p class="dim" style="margin-top:8px; font-size:14px;"><b class="ok">v1.12.0</b>：主档/阶梯分离（<span class="mono">relay.base.yaml</span> + <span class="mono">relay-ladders.yaml</span>）+ 中文档位链名——<span class="mono">model: "旗舰"</span> 失败自动逐级兜底。</p>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">09 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P10 码道应用① -->
+<section class="slide">
+  <h2>码道应用 ① <span class="tag">多智能体流水线</span></h2>
+  <div class="bar"></div>
+  <p style="font-size:17px;">不是单窗口问答——把码道当作带角色分工的虚拟研发团队，任务书驱动，<b>实现→核查→审查→放行</b>四段闭环：</p>
+  <div class="flow" style="margin-top:16px;">
+    <span class="n">team-leader<br><span class="dim">规划·拆解·裁决</span></span><span class="a">▸</span>
+    <span class="n">sdk-engineer<br><span class="dim">代码生成</span></span><span class="a">▸</span>
+    <span class="n">audit-executor<br><span class="dim">真机核查</span></span><span class="a">▸</span>
+    <span class="n">code-reviewer<br><span class="dim">代码审查</span></span><span class="a">▸</span>
+    <span class="n">final-verifier<br><span class="dim">独立放行</span></span>
+  </div>
+  <div class="kv" style="margin-top:22px;">
+    <div class="item"><div class="n">42</div><div class="l">工作区留存会话</div></div>
+    <div class="item"><div class="n">56,975 万</div><div class="l">累计 tokens（≈5.70 亿）</div></div>
+    <div class="item"><div class="n">9</div><div class="l">任务书落盘</div></div>
+    <div class="item"><div class="n">55</div><div class="l">条真机核查记录</div></div>
+    <div class="item"><div class="n">505</div><div class="l">项测试全绿</div></div>
+  </div>
+  <p class="dim" style="margin-top:16px; font-size:15px;">全流程覆盖：环境排障 → 需求调研 → 架构裁决 → 代码生成 → 真机核查 → 代码审查 → 质量门禁 → 文档生成 → 批次收尾 → <b>平台四件套落地 + 生产部署</b>。每一环产出落盘文档，证据链见 <span class="mono">codearts_proof/</span>。</p>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">10 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P10 码道应用② -->
+<section class="slide">
+  <h2>码道应用 ② <span class="tag">Prompt 工程：任务书即接口</span></h2>
+  <div class="bar"></div>
+  <table>
+    <thead><tr><th>Prompt 类型</th><th>结构模板</th><th>关键约束位</th></tr></thead>
+    <tbody>
+      <tr><td>需求类</td><td>目标 + 验收维度</td><td>「说明设计依据」</td></tr>
+      <tr><td>代码生成</td><td>角色→硬约束→事实来源→API 形状→禁止事项</td><td class="accent">「先读源码，后写代码」</td></tr>
+      <tr><td>核查类</td><td>条款清单→执行方法→记录格式→职责边界</td><td>「禁止凭文档推断结果」</td></tr>
+      <tr><td>裁决类</td><td>前序结论（供对照）→独立复核清单</td><td>「不轻信前序结论」</td></tr>
+      <tr><td>批次类</td><td>指向执行指南</td><td>一句话启动多任务</td></tr>
+    </tbody>
+  </table>
+  <div class="two" style="margin-top:18px;">
+    <div class="card"><div class="t">反幻觉设计</div><p>字段名从源码核实、真机执行、独立复跑——<b>三层防线</b></p></div>
+    <div class="card"><div class="t">如实记录文化</div><p>核查 55 条中 3 条不符 / 4 条无法验证，原文保留<b class="warn">不粉饰</b></p></div>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">11 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P11 创新亮点 -->
+<section class="slide">
+  <h2>创新亮点</h2>
+  <div class="bar"></div>
+  <div class="two">
+    <div>
+      <div class="card" style="margin-bottom:12px;"><div class="t">01 <span class="accent">错误可执行化</span></div><p>行业首个把「失败对 Agent 可执行」作为第一设计原则的中转站——竞品逐行比对佐证（file:line 级证据存档）。</p></div>
+      <div class="card" style="margin-bottom:12px;"><div class="t">02 <span class="accent">同价承诺</span></div><p>free 层错误体与上游字节一致——降损能力不成为加价理由。</p></div>
+      <div class="card"><div class="t">03 <span class="accent">防彩虹表指纹</span></div><p><span class="mono">sha256("relay-key:"+key)</span> 域前缀设计——裸哈希可被字典反推，域前缀让彩虹表失效。</p></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px;"><div class="t">04 <span class="accent">零运行时依赖</span></div><p>供应链攻击面为零；部署只需一个 Node 二进制。</p></div>
+      <div class="card" style="margin-bottom:12px;"><div class="t">05 <span class="accent">损耗可度量（P8）</span></div><p>连「治理层自身开销」也纳入量化——自我约束，降损层自己也要被降损衡量。</p></div>
+      <div class="card" style="border-color:var(--accent);"><div class="k">差异化总结</div><div class="t">别人卖转发</div><p>我们卖「<b class="accent">错误发生后的确定性</b>」。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">12 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P13 组合方案① -->
+<section class="slide">
+  <h2>组合方案 ① <span class="tag">底座 + 工作台，一台机器跑通</span></h2>
+  <div class="bar"></div>
+  <p class="lead">api-relay 回答「Agent 站在什么上」，CodeLens 回答「人怎么看见 Agent 在干什么」。两者以 <b class="mono">8787 / 8788</b> 两个端口部署在同一台华为云 ECS 上，串成一条完整链路。</p>
+  <div class="three" style="margin-top:18px;">
+    <div class="card"><div class="k">应用层 · 8788</div><div class="t accent">CodeLens 工作台</div><p>Agent 执行过程可见：工具调用、参数、结果、审批闸；写文件与执行命令按风险等级先请示。</p></div>
+    <div class="card"><div class="k">路由层 · 8787</div><div class="t">api-relay 网关</div><p>多上游聚合 + 降损三件套 + 成本归因；工作台流量走本机回环，不经公网。</p></div>
+    <div class="card"><div class="k">上游 · 6 家</div><div class="t">真实模型池</div><p>同步 <b>72 个模型</b>；答辩位固定 <span class="mono">glm-5.3</span>，原生 function calling 实测通过。</p></div>
+  </div>
+  <div class="flow" style="margin-top:20px;">
+    <span class="n">评委浏览器</span><span class="a">→</span>
+    <span class="n">8788 nginx（免密 token）</span><span class="a">→</span>
+    <span class="n">CodeLens :8789 本地</span><span class="a">→</span>
+    <span class="n">api-relay :8787</span><span class="a">→</span>
+    <span class="n">上游模型</span>
+  </div>
+  <div class="quote" style="margin-top:18px;">安全边界：8789 只监听 <span class="mono">127.0.0.1</span> 不对外；8788 需 token 或 Basic Auth；8787 保持既有鉴权。<b>评委点开一个链接即可看到 Agent 真跑，无需配置任何 Key。</b></div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">13 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P14 组合方案② -->
+<section class="slide">
+  <h2>组合方案 ② <span class="tag">上线路上踩过的三个真坑</span></h2>
+  <div class="bar"></div>
+  <div class="three">
+    <div class="card"><div class="k">坑 1 · 状态码会骗人</div><div class="t warn">白屏，但资源全 200</div><p>CSP 里的 <span class="mono">upgrade-insecure-requests</span> 把 JS 强制升级到 https，而 8788 只有 http；headless + netlog 抓到 <span class="mono">SSL_HANDSHAKE_ERROR -107</span>。</p><p class="ok" style="margin-top:8px;">修复后 DOM 2,199 → 26,416 字节</p></div>
+    <div class="card"><div class="k">坑 2 · 工具也会骗人</div><div class="t warn">CRLF 导致 KEY_MISMATCH</div><p>Windows 工作副本让 <span class="mono">.env</span> 尾部残留 <span class="mono">\r</span>；Git Bash 的 grep 把 CR 当行结束，<span class="mono">grep -c $'\r'</span> 恒为 0。</p><p class="ok" style="margin-top:8px;">改用字节级双方法复核</p></div>
+    <div class="card"><div class="k">坑 3 · 结论要能自我推翻</div><div class="t warn">SSH 端口误判</div><p>Node <span class="mono">net.connect</span> 报 ECONNREFUSED，一度判定「sshd 未运行」；换 .NET TcpClient / curl 实测为 OPEN。</p><p class="ok" style="margin-top:8px;">多方法交叉验证后纠正</p></div>
+  </div>
+  <div class="quote" style="margin-top:20px;">三个坑的共同点：<b>表层指标都正常</b>。200 不代表能渲染，grep 为 0 不代表没有 CR，连接被拒不代表服务没起。全过程证据留档于 <span class="mono">codearts_proof/04</span>，错误结论原样保留。</div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">14 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P15 落地规划 -->
+<section class="slide">
+  <h2>落地规划 <span class="tag">已在真实运营</span></h2>
+  <div class="bar"></div>
+  <p style="font-size:17px;">当前状态：<b class="ok">生产环境运行中</b>，服务真实客户（分层 key、额度、账目全在用）；<b class="ok">多租户 / RBAC、计费账务、协议适配</b>已上线（v1.11.0），<b class="ok">配置主档/阶梯分离 + 中文档位链名（旗舰/平衡/极速/推理）</b>已上线（v1.12.0），<b class="ok">商户 token 券闭环 M0</b>已上线（v1.13.0）；mock 模式保证评委零密钥复现全部功能（<span class="mono">bash demo.sh</span>）。</p>
+  <div class="three" style="margin-top:22px;">
+    <div class="card"><div class="k">近期</div><div class="t">华为云深化</div><p>ECS + ELB 部署方案；对接华为云 <b>ModelArts 盘古</b>作为上游池成员。</p></div>
+    <div class="card"><div class="k">中期</div><div class="t">平台化深化</div><p>开放自助注册；按量计费线上对接；多实例共享 state（Redis）；自助开票与对账导出。</p></div>
+    <div class="card"><div class="k">远期</div><div class="t">标准输出</div><p>降损基线开放 API——让「中转站质量」成为可比较的行业标准。</p></div>
+  </div>
+  <p class="dim" style="margin-top:22px; font-size:16px;">商业模式：标准层订阅 + Pro 层按量；<b class="dim" style="color:var(--fg)">降损数据本身即是企业客户的采购理由</b>。</p>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">15 / 16　·　v1.13.0</span></div>
+</section>
+
+<!-- P14 收尾 -->
+<section class="slide">
+  <div style="margin-top:1.5in">
+    <h1 style="font-size:46px;">把传话层的损耗，<br>做成工程问题</h1>
+    <div class="bar" style="margin-top:22px;"></div>
+    <div class="flow" style="margin-top:14px;">
+      <span class="n mono">bash demo.sh　零密钥复现</span>
+      <span class="n mono">ppt / 本材料</span>
+      <span class="n mono">project / 完整源码</span>
+      <span class="n mono">video / 3 分钟演示</span>
+      <span class="n mono">codearts_proof / 48 会话证据链</span>
+      <span class="n mono">readme / 环境依赖 + 一键安装</span>
+    </div>
+    <p style="margin-top:34px; font-size:18px;" class="ok">505 项测试全过 · 运行时零依赖 · 生产环境运营中</p>
+    <p class="dim" style="margin-top:10px; font-size:16px;">队伍 <b class="mono">落幕</b>　｜　<span class="mono">v1.13.0</span>　｜　li1119489753@outlook.com</p>
+  </div>
+  <div class="foot"><span>api-relay · 落幕</span><span class="v">16 / 16　·　v1.13.0</span></div>
+</section>
+
+</body>
+</html>

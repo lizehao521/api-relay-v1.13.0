@@ -1,0 +1,56 @@
+# api-relay 模型链源文件（档位阶梯 + 能力表）· 2026-10-28 改中文链名
+#
+# 本文件是**源**，不直接被网关加载：api-relay 只吃单文件（--config <path>）。
+# 通过 `npm run config:build` 与 config/relay.base.yaml（主配置）文本合并，
+# 生成 relay-net.yaml 与 config/relay.yaml 两份等价产物后才真正生效。
+# 请勿直接编辑产物文件——改这里，再重新构建。
+#
+# 上游：OpenCSG 网关（opencsg-1/2/3 三把 key），14 个可用模型。
+# 价格口径见 config/relay.base.yaml 的 providers[].modelCosts（元/百万 token）。
+
+# ── 模型能力表（切模型前的安全前提）────────────────────────────────────
+# 带 tools 的请求只会被切到 tools: true 的模型；未声明的字段视为「未知，允许」。
+# contextWindow 未实测，故不声明（本项目纪律：没实测过的数据不编）。
+modelCapabilities:
+  'qwen3.8-max': { tools: true }
+  'glm-5.2': { tools: true }
+  'deepseek-v4-pro': { tools: true }
+  'deepseek-v4.1-flash-1017': { tools: true }
+  'glm-5.1': { tools: true }
+  'qwen3.7-plus': { tools: true }
+  'qwen3.8-flash': { tools: true }
+  'glm-5.3-flash': { tools: true }
+  'qwen3.6-plus': { tools: true }
+  'deepseek-v4-flash': { tools: true }
+  # intern-ai 渠道（2026-10-31 接入）：以下模型在 /v1/models 里均声明支持 tools 与流式。
+  'glm-5.3': { tools: true }
+  'deepseek-v4-pro-0813': { tools: true }
+  'deepseek-v4-flash-0731': { tools: true }
+  'kimi-k2.6': { tools: true }
+  'minimax-m3': { tools: true }
+  # 未声明的（auto / OpenCSG/Agentic-27B / MiniMax-M2.5 / minimax-m3）视为「未知，允许」；
+  # 其中 auto 与 OpenCSG/Agentic-27B 本就无公开价，也不放进任何阶梯。
+
+# ── 档位阶梯（竖向链）──────────────────────────────────────────────────
+# 第一阶是首选，失败就试第二阶；方向完全由这张表决定，不是写死的单向降级。
+#   旗舰：旗舰挂了 → 往下推（平衡 → 极速），保证任务跑完
+#   极速：极速挂了 → 往上推（平衡 → 旗舰）
+# 目的不是省钱，是**让客户的任务自动跑完**；实际服务模型见面板「运维」页的
+# 「模型别名」行（渲染为 名 → 模型 → 模型 → 模型），或用 `relay trace <traceId>` 回放。
+#
+# ⚠️ 链名即客户端请求的 model 名（如 "旗舰"）。改中文名后，客户端请求要用中文，
+#    否则会 404 model_not_found；本配置的 clients 未设 allowedModels 白名单，无需同步。
+# ⚠️ 跨厂商兜底必须另起名字（如 旗舰-any），否则「往下推一档」会偷偷变成「换一家厂」。
+#    当前三个 provider（opencsg-1/2/3）baseUrl 相同、只是三把 key，属**同厂商**横向均衡，
+#    故此处不写 *-any 阶梯；接入第二家真实厂商后再补。
+modelLadders:
+  旗舰:  [qwen3.8-max, glm-5.2, deepseek-v4-pro, qwen3.7-plus, glm-5.3, deepseek-v4-pro-0813]
+  平衡:  [deepseek-v4.1-flash-1017, qwen3.7-plus, deepseek-v4-flash, qwen3.8-flash, kimi-k2.6, glm-5.3]
+  极速:  [qwen3.8-flash, glm-5.3-flash, deepseek-v4-flash, qwen3.6-plus, deepseek-v4-flash-0731, minimax-m3]
+  推理:  [deepseek-v4-pro, deepseek-v4.1-flash-1017, deepseek-v4-pro-0813, glm-5.3]
+  # ── 跨厂商兜底链（2026-10-31 接入 intern-ai 后按本文件顶部纪律补）──
+  # 前段与同厂商链一致，末尾才进入 intern-ai；需要"允许换一家厂"时用这些名字。
+  旗舰-any:  [qwen3.8-max, glm-5.2, deepseek-v4-pro, qwen3.7-plus, glm-5.3, deepseek-v4-pro-0813]
+  平衡-any:  [deepseek-v4.1-flash-1017, qwen3.7-plus, deepseek-v4-flash, qwen3.8-flash, kimi-k2.6, glm-5.3]
+  极速-any:  [qwen3.8-flash, glm-5.3-flash, deepseek-v4-flash, qwen3.6-plus, deepseek-v4-flash-0731, minimax-m3]
+  推理-any:  [deepseek-v4-pro, deepseek-v4.1-flash-1017, deepseek-v4-pro-0813, glm-5.3]

@@ -1,0 +1,9 @@
+{
+  "name": "rsi-target",
+  "version": "0.1.0",
+  "private": true,
+  "description": "受控 RSI 演示靶子：src/stats.js 有 4 处缺陷，test/ 有 4 个失败用例",
+  "scripts": {
+    "test": "node --test --test-reporter=tap"
+  }
+}

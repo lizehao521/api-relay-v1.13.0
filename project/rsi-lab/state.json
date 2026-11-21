@@ -1,0 +1,244 @@
+{
+  "bestCommit": "bad34ff7a10654d378f0b4185fbb2c560c4dee03",
+  "bestScore": 0.9583333333333334,
+  "totalTokens": 311127,
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "accept",
+      "score": 1,
+      "delta": 1,
+      "tokens": 33666,
+      "rejectRate": 0
+    },
+    {
+      "round": 2,
+      "decision": "revert",
+      "score": 1,
+      "delta": 0,
+      "tokens": 45406,
+      "rejectRate": 0
+    },
+    {
+      "round": 3,
+      "decision": "revert",
+      "score": 1,
+      "delta": 0,
+      "tokens": 33493,
+      "rejectRate": 0
+    },
+    {
+      "round": 4,
+      "decision": "revert",
+      "failure": "round_timeout",
+      "tokens": 0,
+      "rejectRate": 0
+    },
+    {
+      "round": 5,
+      "decision": "revert",
+      "failure": "sse_error: {\"code\":\"UPSTREAM_ERROR\",\"message\":\"上游服务返回错误 (HTTP 400): {\\\"error\\\":{\\\"message\\\":\\\"function.arguments 不是合法 JSON：{\\\\\\\"content\\\\\\\": \\\\\\\"// 统计工具库 · 演示靶子（sprint 1 + sprint 2 已实现）\\\\\\\\n'use strict';\\\\\\\\n\\\\\\",
+      "tokens": 0,
+      "rejectRate": 0
+    },
+    {
+      "round": 6,
+      "decision": "revert",
+      "score": 0.5,
+      "delta": 0,
+      "tokens": 32720,
+      "rejectRate": 0
+    },
+    {
+      "round": 7,
+      "decision": "revert",
+      "score": 0.5,
+      "delta": 0,
+      "tokens": 34533,
+      "rejectRate": 0
+    },
+    {
+      "round": 8,
+      "decision": "revert",
+      "score": 0.5,
+      "delta": 0,
+      "tokens": 8547,
+      "rejectRate": 0
+    },
+    {
+      "round": 9,
+      "decision": "revert",
+      "score": 0.5,
+      "delta": 0,
+      "tokens": 8571,
+      "rejectRate": 0
+    },
+    {
+      "round": 10,
+      "decision": "revert",
+      "score": 0.5,
+      "delta": 0,
+      "tokens": 8528,
+      "rejectRate": 0
+    },
+    {
+      "round": 11,
+      "decision": "accept",
+      "score": 0.6875,
+      "delta": 0.1875,
+      "tokens": 17655,
+      "rejectRate": 0
+    },
+    {
+      "round": 12,
+      "decision": "accept",
+      "score": 0.8125,
+      "delta": 0.125,
+      "tokens": 17836,
+      "rejectRate": 0
+    },
+    {
+      "round": 13,
+      "decision": "accept",
+      "score": 1,
+      "delta": 0.1875,
+      "tokens": 18452,
+      "rejectRate": 0
+    },
+    {
+      "round": 14,
+      "decision": "revert",
+      "score": 1,
+      "delta": 0,
+      "tokens": 13735,
+      "rejectRate": 0
+    },
+    {
+      "round": 15,
+      "decision": "accept",
+      "score": 0.8333333333333334,
+      "delta": 0.16666666666666674,
+      "tokens": 19062,
+      "verdict": "improved",
+      "generation": 2,
+      "rejectRate": 0
+    },
+    {
+      "round": 16,
+      "decision": "revert",
+      "failure": "round_timeout",
+      "tokens": 0,
+      "rejectRate": 0
+    },
+    {
+      "round": 17,
+      "decision": "accept",
+      "score": 0.9583333333333334,
+      "delta": 0.125,
+      "tokens": 18923,
+      "verdict": "improved",
+      "generation": 3,
+      "rejectRate": 0
+    }
+  ],
+  "stopReason": null,
+  "milestones": [
+    {
+      "id": "microkernel-measure",
+      "title": "微内核测量口径（三轴分离）",
+      "functions": [
+        "checkMeasure",
+        "readingsRatio",
+        "basisSummary"
+      ],
+      "files": [
+        "src/measure.js",
+        "test/milestone-1.test.js"
+      ],
+      "testFile": "test/milestone-1.test.js",
+      "index": 1,
+      "round": 15,
+      "commit": "0432527071180bb9f2817a19f726ca16ffc3c769",
+      "scoreBefore": 1,
+      "scoreAfter": 0.6666666666666666,
+      "pass": 16,
+      "fail": 8,
+      "total": 24
+    }
+  ],
+  "verdict": {
+    "generation": 3,
+    "manifest": {
+      "producer": "rsi-lab",
+      "generation": 3,
+      "claim": "第 17 轮：23/24 通过（95.8%）",
+      "artifacts": [
+        {
+          "path": "src/measure.js",
+          "sha256": "4ca067164e7d898223ad53c5e61de4586f74c8d5824d62f246506bb3b960a583",
+          "bytes": 1819
+        },
+        {
+          "path": "src/stats.js",
+          "sha256": "c333cde314a47a7ffa73b9b70103abacc0ef87e5aa906d0d3606de3836efadea",
+          "bytes": 2078
+        }
+      ],
+      "criteria_sha256": "bfd5206c35b25607be48eef1f395a8139986c86189aeafcf079a896dad447288",
+      "criteria_diff": [],
+      "readings": [
+        {
+          "metric": "pass_rate",
+          "n": 0.9583333333333334,
+          "basis": 1,
+          "direction": "up"
+        },
+        {
+          "metric": "fail_count",
+          "n": 1,
+          "basis": 1,
+          "direction": "down"
+        }
+      ],
+      "meta": {
+        "criteria_files": [
+          {
+            "path": "test/extra.test.js",
+            "sha256": "b794edc74a996234190d3f1280431a4028da651e51f96163709a1f55572cdab3"
+          },
+          {
+            "path": "test/milestone-1.test.js",
+            "sha256": "e1510d299ecc2276bf59aa80a10a217a8138fd72f1739243a95cd1b061acc099"
+          },
+          {
+            "path": "test/stats.test.js",
+            "sha256": "7df2a29a68c90a4ef11329b532da480a1ef314fca7a38ce87a4444ced3a98ecd"
+          }
+        ]
+      }
+    },
+    "milestone": 1,
+    "last": {
+      "round": 17,
+      "generation": 3,
+      "state": "improved",
+      "decision": "accept",
+      "reasons": [],
+      "metrics": [
+        {
+          "metric": "fail_count",
+          "before": 4,
+          "after": 1,
+          "better": true
+        },
+        {
+          "metric": "pass_rate",
+          "before": 0.8333333333333334,
+          "after": 0.9583333333333334,
+          "better": true
+        }
+      ],
+      "ledgerOk": true
+    }
+  }
+}

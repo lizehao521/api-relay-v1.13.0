@@ -1,0 +1,355 @@
+# ⚠️ 本文件是【主配置源】，不直接被网关加载：api-relay 只吃单文件 --config。
+#    模型链（modelLadders / modelCapabilities）见 config/relay-ladders.yaml。
+#    改完任一源后执行：npm run config:build（生成 relay-net.yaml 与 config/relay.yaml 产物）。
+#
+# api-relay · OpenCSG 上游配置（2026-10-23 新增）
+#
+# 用途：把 OpenCSG AI Gateway 接入本站聚合平台，作为真实上游。
+# 密钥一律走环境变量（{ENV:...}），不写明文 —— 本文件绑 0.0.0.0，明文 key 等于白送入口。
+#
+# 三把 OpenCSG key 配成三个 provider（opencsg-1/2/3）：
+#   同名模型、同 priority、同 weight —— 网关按权重在三条线上做了负载均衡 + 故障转移，
+#   等于把三把 key 的配额叠起来用。
+#
+# 2026-10-23 实测（/v1/models 返回 22 个 + 逐模型三把 key 探活）：
+#   可用（14，三把 key 全 200）：见下方 models 列表。
+#   不可用：convaiinnovations/laya、jev-1.13（400 不支持 chat）、
+#           Qwen2-0.5B-Instruct:1mz（上游 502）。
+#   非 chat 型号（guard/asr/rerank/embedding）不接。
+
+server:
+  host: "0.0.0.0"
+  port: 8787
+  adminToken: "{ENV:RELAY_ADMIN_TOKEN}"
+  # ── 面板登录账号（2026-10-23 新增）────────────────────────────────
+  # adminLogin：管理员账号，全权（配置/轮换/摘除/触发）。
+  # viewerLogin：**只读账号**（评委查看用）—— 可登录、可看全部页面，
+  #   任何写操作（POST/PUT/PATCH/DELETE）一律 403 readonly_account。
+  # 两者均由 .relay.env 注入；密码未设置则 viewer 账号不启用。
+  adminLogin:
+    username: "{ENV:RELAY_ADMIN_USER:-admin}"
+    password: "{ENV:RELAY_ADMIN_PASSWORD}"
+  viewerLogin:
+    username: "{ENV:RELAY_VIEWER_USER:-judge}"
+    password: "{ENV:RELAY_VIEWER_PASSWORD}"
+  trustProxy: false
+  publicQuota: true
+  publicQuotaRemote: false
+  # ── 防上游探测（2026-10-23 新增）──────────────────────────────────
+  # 对下游隐藏上游身份：/v1/models 的 owned_by 统一为 relay；响应头不再回显
+  # x-relay-upstream / x-relay-model-served / x-relay-switched / x-relay-ladder；
+  # x-relay-loss-reduction 去掉 provider=；归因 upstream 统一为 relay；
+  # 响应体 model 字段强制回显请求模型名（不透传上游真实名，如 xxx-0731）。
+  hideUpstream: true
+  upstreamTtfbTimeoutMs: 90000
+  upstreamTimeoutMs: 300000
+  upstreamStallTimeoutMs: 20000
+  streamCommitGraceMs: 8000
+  streamHeartbeatMs: 5000
+  hedgeDelayMs: 20000
+
+storage:
+  driver: sqlite
+  path: data/relay.db
+
+logLevel: info
+
+# ── 分层策略（智能选项）──────────────────────────────────────────────
+# deepMerge 深合并：只写要覆盖的字段，其余沿用内置默认（DEFAULT_TIERS）。
+# smartRouting = 成本感知路由（"智能路由"）：简单任务自动挑最便宜可用上游。
+#   默认值：free=false / standard=false / pro=true；此处三层全部显式开启。
+#   生效条件：请求复杂度判定为 simple，且候选上游配有 cost（本配置三个上游均已配）。
+# 注：面板「智能路由」列即读此字段（tiers.<层>.smartRouting）。
+tiers:
+  free:
+    smartRouting: true
+  standard:
+    smartRouting: true
+  pro:
+    smartRouting: true
+
+# ── 上游价格口径（2026-10-27 核）─────────────────────────────────────
+# OpenCSG 官方未公开各模型的单点价目（其文档只说明"按目标服务配置的 SKU 核算"），
+# 故此处按**各模型所属原厂**的公开定价设置，单位统一为**人民币元 / 百万 token**，
+# 作为 cost（实付口径：成本统计 + 预算闸门 + smart routing 的依据）。三个 key 同价。
+#   来源：DeepSeek 官方 api-docs（峰谷价，此处取高峰；空闲时段为其一半）；
+#         阿里云百炼（华北2，qwen 取 0<Token≤256K 档）;
+#         智谱 bigmodel（GLM-5.1 取 [0,32K) 档）；MiniMax 开放平台（M3 取五折现价）。
+#   缺口：`auto`（OpenCSG 自动路由）与 `OpenCSG/Agentic-27B`（OpenCSG 自研）无公开价，
+#         回落到厂商级 cost 兜底（1.0/2.0）；拿到 OpenCSG 实际结算价后按 modelCosts 覆盖。
+providers:
+  # ── OpenCSG 网关 #1 ────────────────────────────────────────────────
+  - id: opencsg-1
+    label: OpenCSG 网关 #1
+    protocol: openai
+    baseUrl: https://opencsg.com/aigateway/v1
+    # 2026-10-31 三把 key 额度耗尽：先摘除凭据并停用上游，等新 key 到位后
+    # 恢复为 "{ENV:OPENCSG_API_KEY_1}" 并删掉 disabled 行即可。
+    apiKey: "pending-key-replacement"
+    disabled: true
+    models: [MiniMax-M2.5, OpenCSG/Agentic-27B, auto, deepseek-v4-flash, deepseek-v4-pro, deepseek-v4.1-flash-1017, glm-5.1, glm-5.2, glm-5.3-flash, minimax-m3, qwen3.6-plus, qwen3.7-plus, qwen3.8-flash, qwen3.8-max]
+    weight: 1
+    priority: 20
+    tags: [cn, gateway, opencsg]
+    cost: { inputPerMTok: 1.0, outputPerMTok: 2.0 }   # 厂商级兜底：auto / OpenCSG/Agentic-27B 无公开价时用它
+    # 按型号实付价（各模型原厂公开定价，人民币元/百万 token）；未列出的型号回落到上面厂商级 cost。
+    # 缓存命中价（cachedInputPerMTok）只填**官方直接列出具体单价**的模型（DeepSeek/GLM/MiniMax）；
+    # qwen 系列官方按量页未给具体单价（仅比例，且 qwen3.8-max/flash 为例外），故不配 → 缺省按输入价计（保守）。
+    modelCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.42 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 1.6, outputPerMTok: 6.4 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+    # 按型号刊例价（官方牌面价；仅 minimax-m3 / qwen3.7-plus 与实付有差异，其余与实付同价）
+    modelListCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 4.2, outputPerMTok: 16.8, cachedInputPerMTok: 0.84 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 2, outputPerMTok: 8 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+
+  # ── OpenCSG 网关 #2 ────────────────────────────────────────────────
+  - id: opencsg-2
+    label: OpenCSG 网关 #2
+    protocol: openai
+    baseUrl: https://opencsg.com/aigateway/v1
+    # 2026-10-31 额度耗尽：摘除凭据并停用；新 key 到位后恢复 {ENV:OPENCSG_API_KEY_2} 并删除 disabled。
+    apiKey: "pending-key-replacement"
+    disabled: true
+    models: [MiniMax-M2.5, OpenCSG/Agentic-27B, auto, deepseek-v4-flash, deepseek-v4-pro, deepseek-v4.1-flash-1017, glm-5.1, glm-5.2, glm-5.3-flash, minimax-m3, qwen3.6-plus, qwen3.7-plus, qwen3.8-flash, qwen3.8-max]
+    weight: 1
+    priority: 20
+    tags: [cn, gateway, opencsg]
+    cost: { inputPerMTok: 1.0, outputPerMTok: 2.0 }   # 厂商级兜底：auto / OpenCSG/Agentic-27B 无公开价时用它
+    # 按型号实付价（各模型原厂公开定价，人民币元/百万 token）；未列出的型号回落到上面厂商级 cost。
+    # 缓存命中价（cachedInputPerMTok）只填**官方直接列出具体单价**的模型（DeepSeek/GLM/MiniMax）；
+    # qwen 系列官方按量页未给具体单价（仅比例，且 qwen3.8-max/flash 为例外），故不配 → 缺省按输入价计（保守）。
+    modelCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.42 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 1.6, outputPerMTok: 6.4 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+    # 按型号刊例价（官方牌面价；仅 minimax-m3 / qwen3.7-plus 与实付有差异，其余与实付同价）
+    modelListCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 4.2, outputPerMTok: 16.8, cachedInputPerMTok: 0.84 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 2, outputPerMTok: 8 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+
+  # ── OpenCSG 网关 #3 ────────────────────────────────────────────────
+  - id: opencsg-3
+    label: OpenCSG 网关 #3
+    protocol: openai
+    baseUrl: https://opencsg.com/aigateway/v1
+    # 2026-10-31 额度耗尽：摘除凭据并停用；新 key 到位后恢复 {ENV:OPENCSG_API_KEY_3} 并删除 disabled。
+    apiKey: "pending-key-replacement"
+    disabled: true
+    models: [MiniMax-M2.5, OpenCSG/Agentic-27B, auto, deepseek-v4-flash, deepseek-v4-pro, deepseek-v4.1-flash-1017, glm-5.1, glm-5.2, glm-5.3-flash, minimax-m3, qwen3.6-plus, qwen3.7-plus, qwen3.8-flash, qwen3.8-max]
+    weight: 1
+    priority: 20
+    tags: [cn, gateway, opencsg]
+    cost: { inputPerMTok: 1.0, outputPerMTok: 2.0 }   # 厂商级兜底：auto / OpenCSG/Agentic-27B 无公开价时用它
+    # 按型号实付价（各模型原厂公开定价，人民币元/百万 token）；未列出的型号回落到上面厂商级 cost。
+    # 缓存命中价（cachedInputPerMTok）只填**官方直接列出具体单价**的模型（DeepSeek/GLM/MiniMax）；
+    # qwen 系列官方按量页未给具体单价（仅比例，且 qwen3.8-max/flash 为例外），故不配 → 缺省按输入价计（保守）。
+    modelCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.42 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 1.6, outputPerMTok: 6.4 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+    # 按型号刊例价（官方牌面价；仅 minimax-m3 / qwen3.7-plus 与实付有差异，其余与实付同价）
+    modelListCosts:
+      'MiniMax-M2.5': { inputPerMTok: 2.1, outputPerMTok: 8.4, cachedInputPerMTok: 0.21 }
+      'deepseek-v4-flash': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'deepseek-v4-pro': { inputPerMTok: 9.0, outputPerMTok: 27.0, cachedInputPerMTok: 0.30 }
+      'deepseek-v4.1-flash-1017': { inputPerMTok: 3.0, outputPerMTok: 9.0, cachedInputPerMTok: 0.10 }
+      'glm-5.1': { inputPerMTok: 6, outputPerMTok: 24, cachedInputPerMTok: 1.3 }
+      'glm-5.2': { inputPerMTok: 8, outputPerMTok: 28, cachedInputPerMTok: 2 }
+      'glm-5.3-flash': { inputPerMTok: 0.8, outputPerMTok: 2.8, cachedInputPerMTok: 0.23 }
+      'minimax-m3': { inputPerMTok: 4.2, outputPerMTok: 16.8, cachedInputPerMTok: 0.84 }
+      'qwen3.6-plus': { inputPerMTok: 2, outputPerMTok: 12 }
+      'qwen3.7-plus': { inputPerMTok: 2, outputPerMTok: 8 }
+      'qwen3.8-flash': { inputPerMTok: 0.8, outputPerMTok: 2.7 }
+      'qwen3.8-max': { inputPerMTok: 12, outputPerMTok: 36 }
+
+  # ── intern-ai 发现网关（2026-10-31 新接入）──────────────────────────
+  # 实测 /v1/models 13 个模型全部就绪，且都声明支持 tools 与流式；
+  # 该渠道未公布按量价格，故不配 cost/modelCosts（账本成本按 0 计，勿用于对外报价）。
+  - id: intern-ai
+    label: intern-ai 发现网关
+    protocol: openai
+    baseUrl: https://discovery-api.intern-ai.org.cn/v1
+    apiKey: "{ENV:INTERN_AI_API_KEY}"
+    models: [Agents-A1, Atria-Dawn, Atria-Dawn-Preview, Sage-A1.5, deepseek-v4-flash-0731, deepseek-v4-flash-vision, deepseek-v4-pro-0813, deepseek-v4.1-flash-1017, glm-5.3, intern-s2, kimi-k2.6, minimax-m3, qwen3.8-27b]
+    weight: 1
+    priority: 20
+    tags: [cn, gateway, intern-ai]
+
+# ── 模型别名（2026-10-23 扩充）──────────────────────────────────────
+# 原因：下游常用第三方客户端，其**默认模型名**是 gpt-4o / claude-3-5-sonnet / gemini-*
+# 这类业界通用名。网关对未声明的名字返回 404 model_not_found（"没有任何上游声明支持模型…"），
+# 于是用户看到"获取不到模型"。把常见名映射到本网关已开通的模型，客户端开箱可用。
+# 注意：别名必须指向**已在本网关开通**的模型（否则仍会 404）。
+# 2026-11-01：OpenCSG 停用后别名原指向 OpenCSG 专属型号（qwen3.8-max 等），
+# 客户端用标准名会 503；现统一改指向 intern-ai 渠道的在服务模型。
+modelAliases:
+  # —— OpenAI 系 ——
+  gpt-4o: qwen3.8-27b
+  gpt-4o-mini: deepseek-v4-flash-0731
+  gpt-4-turbo: deepseek-v4-pro-0813
+  gpt-4: deepseek-v4-pro-0813
+  gpt-3.5-turbo: deepseek-v4-flash-0731
+  gpt-35-turbo: deepseek-v4-flash-0731
+  o1: kimi-k2.6
+  o1-mini: deepseek-v4-flash-0731
+  o3-mini: glm-5.3
+  # —— Anthropic 系 ——
+  claude-3-5-sonnet-20241022: glm-5.3
+  claude-3-5-sonnet: glm-5.3
+  claude-3-opus: deepseek-v4-pro-0813
+  claude-3-haiku: deepseek-v4-flash-0731
+  # —— Google 系 ——
+  gemini-1.5-pro: qwen3.8-27b
+  gemini-1.5-flash: deepseek-v4-flash-0731
+  gemsi-flash: deepseek-v4-flash-0731
+  # —— DeepSeek 系 ——
+  deepseek-chat: deepseek-v4.1-flash-1017
+  deepseek-reasoner: deepseek-v4-pro-0813
+  # —— 兜底 ——
+  default: deepseek-v4-flash-0731
+
+defaultProvider: intern-ai
+
+clients:
+  - id: free
+    label: 免费层（纯转发）
+    key: "{ENV:RELAY_KEY_FREE}"
+    tier: free
+    tenantId: demo
+    enabled: true
+  - id: standard
+    label: 标准层（归因走响应头）
+    key: "{ENV:RELAY_KEY_STANDARD}"
+    tier: standard
+    tenantId: demo
+    enabled: true
+  - id: pro
+    label: Pro 层（预检+归因全开）
+    key: "{ENV:RELAY_KEY_PRO}"
+    tier: pro
+    tenantId: demo
+    enabled: true
+  # ── 内部 Agent 专用 key（2026-10-23 新增）──────────────────────────
+  # Agent 调 LLM 走**本网关自身** /v1/chat/completions（自证闭环）：
+  # 该 key 走完整鉴权/预检/路由/归因/计量链路，Agent 产生的 token 用量
+  # 自然落到 meter（按 agent 指纹可识别），不绕开自己的网关。
+  - id: agent
+    label: 内部运维 Agent（自托管 LLM 闭环）
+    key: "{ENV:RELAY_KEY_AGENT}"
+    tier: pro
+    tenantId: agent
+    enabled: true
+
+# ── 知识库（垂直 Agent 能力；启用后 Agent 的迭代建议可沉淀）──────────
+# 独立 SQLite 库，与主度量库分离。缺省 / path 为空 = 未启用。
+kb:
+  path: "data/kb.db"
+  chunkSize: 512
+  chunkOverlap: 64
+
+# ── 内部 Agent 系统（自托管运维/迭代决策环，2026-10-23 新增）──────────
+# 闭环：读取运营快照 → 调用本网关自身 LLM 分析 → 产出运维/迭代建议
+#       → 沉淀到知识库 → 审计事件落库（store.logEvent）。
+# 带 toolCtx 工具循环（get_metrics / list_events / list_providers /
+# get_trace / search_kb / get_catalog / read_policy 等，只读取证）。
+agent:
+  enabled: true
+  # 用 clients 里声明的 agent 专用 key 调 LLM（pro 层：预检/归因/计量全开）
+  clientId: agent
+  # 模型须在本网关已开通清单内（走 /v1/chat/completions，自证闭环）
+  model: "deepseek-v4-flash"
+  # 周期巡检：30 分钟一轮；0 = 只手动触发
+  intervalMs: 1800000
+  # 单轮 LLM 超时
+  llmTimeoutMs: 60000
+  # 巡检产出的迭代建议直接沉淀到 KB（也可在面板人工确认后写入）
+  autoWriteKb: true
+  # 单轮喂给 LLM 的最近事件数（细节留给工具按需取证）
+  recentEvents: 30
+  # 知识沉淀目标 KB（须先创建；不存在则跳过回写且不报错）
+  kbId: "relay-ops"
+  # Agent 自身日护栏：任一超限拒绝下一轮并记 agent.quota_blocked 事件
+  dailyTokenLimit: 200000
+  dailyCostCnyLimit: 5
+  # ── 决策矩阵（决策仲裁，2026-10-29 新增）────────────────────────────────
+  # 六维加权打分（每维 0..1，risk/effort 是"越高越有利"的反向分）：impact 影响面 0.30 /
+  # confidence 置信度 0.25 / evidence 证据 0.15 / risk 安全性 0.20 / effort 可执行性 0.05 /
+  # novelty 新颖度 0.05；score = Σ(权重×维度)，按 accept/queue/reject 三档归档。
+  # 四门 G1 复用 / G2 增量 / G3 收益 / G4 回归：任一门不通过即**强制降档**
+  # （accept→queue→reject），rawTier 保留原档以便复盘。
+  # 安全不变量：矩阵只仲裁不扩权——只下压档位、不改动作内容；reject 档剥离 proposedChange，
+  # 被驳回的建议不会流向任何执行路径。enabled: false = 完全不介入（零行为变化）。
+  decisionMatrix:
+    enabled: true
+    acceptThreshold: 0.70
+    queueThreshold: 0.45
+    historyLimit: 50
+    adaptiveNovelty: true
+
+lossReduction:
+  precheck:
+    enabled: true
+    onBlock: reject
+    budgetUs: 3000
+  attribution:
+    enabled: true
+    includeEvidence: false
+    autoRetry: 1
+    backoffBaseMs: 400
+    backoffMaxMs: 8000
+  meter:
+    enabled: true
+    retentionDays: 30
+  trace:
+    enabled: true
+    ringSize: 500
+    persist: true

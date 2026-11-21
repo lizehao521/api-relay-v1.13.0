@@ -1,0 +1,106 @@
+schema_version: s1-criteria-1
+domain: D0
+status: draft
+baseline_hash: bc79e113f3960f373e693a75624df0a6a67a3c04471019540fbdcc7dd976d552
+
+criteria:
+  - id: C1
+    name: 端点连通与健康基线
+    threshold: "relay 暴露的全部上游端点在冷启动后 60s 内健康检查连续 3 次通过，成功率 = 100%"
+    binary: true
+    evidence:
+      - "健康检查原始日志（每端点 3 次采样，含时间戳与状态码）"
+      - "端点清单与实际探测结果的一一映射表"
+    failure_action: "判定失败并阻断 C2-C8 判定，输出失败端点清单与上游错误码"
+    role: "验证执行者"
+    owner: "relay 平台组"
+
+  - id: C2
+    name: 鉴权透传与凭据隔离
+    threshold: "所有请求的鉴权头按配置注入且不落盘、不回显；跨租户凭据泄漏计数 = 0"
+    binary: true
+    evidence:
+      - "脱敏后的请求/响应抓包样本（≥3 组）"
+      - "凭据存储与注入路径的代码或配置引用"
+    failure_action: "判定失败，要求轮换受影响凭据并暂停 C3-C8 采样"
+    role: "安全验证者"
+    owner: "安全与合规组"
+
+  - id: C3
+    name: 请求语义透传一致性
+    threshold: "入参 body、messages、tools、stream、temperature 等字段转发后逐字段一致率 = 100%，无字段丢失或改写"
+    binary: true
+    evidence:
+      - "同一请求的入站/出站 diff 记录（≥5 组，含流式与非流式）"
+      - "字段级断言结果"
+    failure_action: "判定失败，输出首个不一致字段名与样本，回滚相关转发改动"
+    role: "功能验证者"
+    owner: "relay 平台组"
+
+  - id: C4a
+    name: 首次切换事件时延
+    threshold: "触发切换后 5s 内出现首次切换事件（切换日志与事件流均可观测），TTFB ≤ 5s"
+    binary: true
+    evidence:
+      - "触发时刻与首次切换事件时间戳的差值日志（≥3 次切换）"
+      - "切换事件流原始记录"
+    failure_action: "判定失败，输出每次切换的 TTFB 实测值与超时样本，定位阻塞点"
+    role: "性能验证者"
+    owner: "relay 平台组"
+
+  - id: C4b
+    name: 切换后最终可用探活
+    threshold: "切换完成后 25s 内探活请求返回 200 且产出首个有效响应，最终可用时间 ≤ 25s"
+    binary: true
+    evidence:
+      - "探活请求与响应记录（含状态码、耗时、响应体片段）"
+      - "切换完成时刻到探活成功的时序日志"
+    failure_action: "判定失败，输出超时探活样本与上游错误，阻断 C5-C8 判定"
+    role: "性能验证者"
+    owner: "relay 平台组"
+
+  - id: C5
+    name: 三档模型档位覆盖
+    threshold: "三档模型 id 全部可路由且探活通过：moonshotai/kimi-k3.1-pro、minimaxai/minimax-m3.1-flash、nvidia/nemotron-3.5-lightning-30b-a3b；不锁定 34 条模型清单，清单外模型缺失不作为失败依据"
+    binary: true
+    evidence:
+      - "三档模型各自的路由配置与探活响应"
+      - "档位映射表（档位 → model id → 上游端点）"
+    failure_action: "按缺失档位逐项列出并判定失败，要求补齐路由映射"
+    role: "功能验证者"
+    owner: "模型路由组"
+
+  - id: C6
+    name: 故障降级与回退
+    threshold: "上游 5xx、超时、连接重置场景下自动回退到下一可用档位，回退成功率 = 100%，且不重复计费"
+    binary: true
+    evidence:
+      - "故障注入用例与回退链路日志（≥3 例）"
+      - "计费/用量记录与请求次数对账结果"
+    failure_action: "判定失败，输出未回退的故障样本与重复计费条目"
+    role: "可靠性验证者"
+    owner: "relay 平台组"
+
+  - id: C7
+    name: 限流与并发稳定性
+    threshold: "声明的并发上限内请求成功率 ≥ 99%，超限请求返回 429 且不引发上游 5xx 扩散"
+    binary: true
+    evidence:
+      - "压测结果（并发档位、QPS、成功率、p95 时延）"
+      - "429 与 5xx 计数统计"
+    failure_action: "判定失败，输出超限阈值与首个 5xx 扩散时刻"
+    role: "性能验证者"
+    owner: "relay 平台组"
+
+  - id: C8
+    name: 可观测性与日志可追溯
+    threshold: "每次请求可通过 trace 或 request id 关联到路由决策、切换事件与上游调用，日志字段完整率 = 100%"
+    binary: true
+    evidence:
+      - "单次请求的全链路 trace 片段"
+      - "日志字段完整性检查结果"
+    failure_action: "判定失败，列出缺失字段与无法关联的请求样本"
+    role: "可观测性验证者"
+    owner: "SRE 组"
+
+S1 verdict: drafted

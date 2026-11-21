@@ -1,0 +1,209 @@
+{
+  "note": "已知缺口池。来源：server/docs/rsi-kernel-charter.md 第 10 节 UNEXEC 清单 + 各文档边界。propose-gaps.ts 只把 agentActionable=true 的条目交给 Agent——因为靶子在 scripts/ 或 src/services/{judge,rsi,eval}/ 下的缺口，改它等于改尺子，只能人做。人维护此文件，Agent 够不到。 已完成的缺口保留在池里作留痕，但 status=done 且 agentActionable=false，不会再喂给提议模型。",
+  "updatedAt": "2026-11-14",
+  "items": [
+    {
+      "id": "orphan-tool-gate",
+      "title": "工具用完不回收：造出来就留在主树，没有孤儿闸",
+      "why": "宣言第 6 节要求「任务结束必删工具」并配三道机器闸。现在 Agent 能 tool.forge 造工具，但没有任何回收与配对检查——按第 6 节这属于熵。",
+      "targetHint": "src/tools/builtin/tool-forge.tool.ts",
+      "size": "中",
+      "agentActionable": true,
+      "source": "charter §10 UNEXEC",
+      "status": "done",
+      "releasedIn": "2.21.0",
+      "note": "任务收尾自动清理未回收义肢；4/4 判据通过。"
+    },
+    {
+      "id": "exec-partial-on-timeout",
+      "title": "命令超时只剩一句「超时」，拿不到已经产生的输出",
+      "why": "sys.exec 超时时把子进程杀掉，已写进 stdout 的内容一并丢弃。模型于是不知道它是「跑对了但慢」还是「卡死在第一步」——这两种情况的下一步动作完全相反。",
+      "targetHint": "src/tools/builtin/sys-exec.tool.ts",
+      "size": "小",
+      "agentActionable": false,
+      "source": "实测：诊断里超时轮次只有一句 timeout，无任何输出",
+      "status": "done",
+      "releasedIn": "2.7.0",
+      "note": "已由 Agent 实现（超时分支返回 data.partial），判据按真实 API 修正后 7/7 通过；人工复核 verified。"
+    },
+    {
+      "id": "error-next-action",
+      "title": "错误只报「哪种错」，不报「下一步该做什么」",
+      "why": "错误有 10 种 kind，但 kind 只说明分类。模型拿到 invalid_args 仍不知道该改成什么。可观察的差别：修复所需轮次。",
+      "targetHint": "src/tools/builtin/fs-write.tool.ts",
+      "size": "小",
+      "agentActionable": true,
+      "source": "实测：字面量改错那几轮，反馈里只有「未找到」，没有「你给的第 3 行在文件里是第 5 行」",
+      "status": "done",
+      "releasedIn": "2.21.0",
+      "note": "fs.write 失败路径补 suggestion；7/7 判据通过。"
+    },
+    {
+      "id": "batch-atomicity",
+      "title": "多文件改动没有原子性：中途失败留半成品",
+      "why": "一次任务要改 2~3 个文件时，第二个失败会让第一个的改动留在盘上，围栏看到的是「靶子改了一半」。这在集成层失败里占了一类。",
+      "targetHint": "src/tools/builtin/fs-write.tool.ts",
+      "size": "中",
+      "agentActionable": true,
+      "source": "实测：integration/FULL_SUITE_RED 两轮均为多文件改动",
+      "status": "done",
+      "releasedIn": "2.21.0",
+      "note": "批次失败时逆序恢复 fs.write 已写文件；2/2 判据通过。"
+    },
+    {
+      "id": "judge-mutation-probe",
+      "title": "判据没被破坏过：只验「有反向断言」，没验「改坏必红」",
+      "why": "宣言 C3 要求判据有破坏夹具。现在 judge-audit.mjs 只查反向断言占比，弱反向断言（恒真条件）仍能通过。",
+      "targetHint": "scripts/judge-audit.mjs",
+      "size": "中",
+      "agentActionable": false,
+      "blockedBy": "靶子在 scripts/（受保护）——改它等于改尺子，只能人做"
+    },
+    {
+      "id": "unexec-third-state",
+      "title": "只有 PASS/FAIL 两态：没跑到的步骤被记成失败",
+      "why": "宣言 C4 明确 UNEXEC 既不等于 PASS 也不等于 FAIL。现在「判据没跑」和「判据跑红」都落同一个 FAIL 桶，归因只能按 FAIL 的层标签往下归。",
+      "targetHint": "scripts/check-self-upgrade.mjs",
+      "size": "中",
+      "agentActionable": false,
+      "blockedBy": "靶子在 scripts/（受保护）"
+    },
+    {
+      "id": "strengthens-field",
+      "title": "新增模块不必回答「强化了哪一维」",
+      "why": "宣言 C1 要求每个新增模块必须能回答强化了 Act/Judge/Update/Memory 的哪一维。现在 tasks.json 没有这个字段，全靠人审。",
+      "targetHint": "self-upgrade/tasks.json",
+      "size": "小",
+      "agentActionable": false,
+      "blockedBy": "靶子在 self-upgrade/（受保护规格）"
+    },
+    {
+      "id": "judge-semantic-layer",
+      "title": "判据塔只有 L0：没有 L2 语义判据",
+      "why": "宣言第 3 节要求低层不能替高层签字。现在全部判据都是机械断言，没有一条回答「质量是否真的提升」。",
+      "targetHint": "src/services/judge/",
+      "size": "大",
+      "agentActionable": false,
+      "blockedBy": "靶子在 src/services/judge/（受保护：那是判据计算层）"
+    },
+    {
+      "id": "agent-loop-run-loop",
+      "title": "run() 仍保留主循环骨架，尚未抽成 runLoop()",
+      "why": "run() 已从 851 行降到 261 行，但 checkTermination、contextManager.buildView/压缩失败分支、迭代推进与最终答案/工具分发仍在 run() 内；下一步应抽 runLoop()，让 run() 只做 prepareSession → runLoop → finalizeRun。",
+      "targetHint": "src/services/agent/agent-loop.service.ts",
+      "size": "中",
+      "agentActionable": false,
+      "source": "S6 交接 2026-11-14",
+      "status": "done",
+      "taskId": "agent-loop-run-loop",
+      "draftedAt": "2026-11-14",
+      "blockedBy": "靶子在 src/services/agent（D2，首次需人批）且判据在 tests/self-upgrade（D4）",
+      "releasedIn": "2.21.0",
+      "note": "run() 主循环抽成 runLoop()；run() ≤200 行，保留 prepareSession → prepareRun → runLoop → finalizeRun。agent-loop-split 10/10、agent-loop-e2e 10/10、server acceptance exit 0。"
+    },
+    {
+      "id": "agent-loop-e2e-unexec",
+      "title": "S6 拆分后 e2e 仍是 UNEXEC",
+      "why": "本轮只跑了 typecheck/全量 vitest/acceptance；bash scripts/e2e.sh 未执行。拆分涉及 SSE、审批、恢复、取消等跨组件路径，需要一次真实 e2e 才能把「行为未变」从单测提升到端到端读数。",
+      "targetHint": "scripts/e2e.sh",
+      "size": "小",
+      "agentActionable": false,
+      "source": "S6 交接 2026-11-14",
+      "blockedBy": "需要真实上游与浏览器环境，当前不在 CI"
+    },
+    {
+      "id": "ledger-verify-agent-loop-split",
+      "title": "新增的 S6 题目尚未进入 verified 账本",
+      "why": "tasks.json 已有 35 题，但 .self-upgrade/ledger.jsonl 的 verified 覆盖只有 13/35；agent-loop-split-facts/round/turn/prepare/session 五题都还没有 verified 记录，跨代对账会把它们当成未验证。",
+      "targetHint": ".self-upgrade/ledger.jsonl",
+      "size": "小",
+      "agentActionable": false,
+      "source": "S6 交接 2026-11-14",
+      "blockedBy": "账本是外部人工/采纳流程，Agent 写不到"
+    },
+    {
+      "id": "memory-exemplar-injection",
+      "title": "正例回灌样本只有 3 条",
+      "why": "exemplars 当前只有 3 条，且没有从 exemplars 到系统提示词的稳定注入判据；需要覆盖选取、排序、预算与去重。",
+      "targetHint": "src/services/agent/project-instructions.ts",
+      "size": "中",
+      "agentActionable": true,
+      "status": "done",
+      "source": "Memory dimension gap",
+      "taskId": "memory-exemplar-injection",
+      "note": "对应 task 已 done / 2.23.0；backlog 状态归位。"
+    },
+    {
+      "id": "memory-convention-versioning",
+      "title": "长期约定没有版本化",
+      "why": "AGENTS.md/CLAUDE.md 只按当前内容注入，无法回答“这条约定何时生效/变了什么”；需要约定版本与变更证据。",
+      "targetHint": "src/services/agent/project-instructions.ts",
+      "size": "中",
+      "agentActionable": true,
+      "status": "done",
+      "source": "Memory dimension gap",
+      "taskId": "memory-convention-versioning",
+      "note": "RSI bridge 围栏 PASS；新判据 5/5；版本 2.25.0。"
+    },
+    {
+      "id": "memory-cross-session-inheritance",
+      "title": "跨会话指令继承未验证",
+      "why": "新会话只继承仓库指令，不继承上一会话确认的长期约定；需要明确继承边界、去重与撤销。",
+      "targetHint": "src/services/agent/agent-loop.service.ts",
+      "size": "中",
+      "agentActionable": true,
+      "status": "done",
+      "source": "Memory dimension gap",
+      "taskId": "memory-cross-session-inheritance",
+      "note": "RSI bridge 围栏 PASS；跨会话判据 2/2；版本 2.26.0。"
+    },
+    {
+      "id": "approval-expired-not-tool-failure",
+      "title": "审批过期被算成工具失败",
+      "why": "审批过期调用未执行，却进入 tool.success_rate 分母，g3 的 1→0.923 由此产生。",
+      "targetHint": "src/services/tools/executor.service.ts",
+      "size": "小",
+      "agentActionable": true,
+      "status": "done",
+      "source": "RSI gen3 证据链",
+      "taskId": "approval-expired-not-tool-failure",
+      "note": "已修复并经 bridge 2.27.0 验证；其他两项已登记 draft。"
+    },
+    {
+      "id": "terminal-budget-kind",
+      "title": "task.terminal 把 wall-clock 预算耗尽写成 token 预算耗尽",
+      "why": "g3 实际触发 wall_clock（471721/180000ms），task.terminal detail 却固定写“token 预算耗尽”，会误导归因。",
+      "targetHint": "src/services/judge/criteria.ts",
+      "size": "小",
+      "agentActionable": true,
+      "status": "done",
+      "source": "RSI gen3 证据链",
+      "note": "已授权修复并经 bridge 2.28.0 验证；task.terminal 按真实预算种类出 detail。",
+      "taskId": "terminal-budget-kind"
+    },
+    {
+      "id": "approval-wait-exceeds-budget",
+      "title": "审批等待可越过任务 wall-clock 预算",
+      "why": "g3 在 180s 预算耗尽后仍 parked 等待审批至 300s TTL，最终以过期结束；预算闸只在轮次间检查，审批等待没有 budget/abort 边界。",
+      "targetHint": "src/services/tools/executor.service.ts / src/services/agent/approval.service.ts",
+      "size": "中",
+      "agentActionable": true,
+      "status": "done",
+      "source": "RSI gen3 证据链",
+      "taskId": "approval-wait-exceeds-budget",
+      "note": "已修复并经 bridge 2.29.0 验证；审批等待不得越过任务 wall-clock。"
+    },
+    {
+      "id": "approval-prolong-budget",
+      "title": "人工 prolong 审批可越过 wall-clock",
+      "why": "prolong() 重新签发审批时没有沿用任务 deadline；首次审批已修，但人工延长仍是漏洞。",
+      "targetHint": "src/services/agent/approval.service.ts",
+      "size": "小",
+      "agentActionable": true,
+      "status": "done",
+      "source": "approval-wait 后续审计",
+      "taskId": "approval-prolong-budget",
+      "note": "已修复并经 bridge 2.30.0 验证；人工 prolong 也受任务 wall-clock deadline 限制。"
+    }
+  ]
+}

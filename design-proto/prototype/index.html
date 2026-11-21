@@ -1,0 +1,2108 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-density="compact" data-role="owner">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>api-relay · 聚合中转模型 API 平台 — 高保真原型 v1.0</title>
+<!--
+  api-relay 二次开发 · 阶段3 高保真原型（单文件 · hash 切页 · 零 CDN · 双击离线可开）
+  设计系统：Linear 基因 + 沿用 GitHub 暗色色值 · v1.0  —— 来源 design-proto/02-design-system.md
+  规格依据：design-proto/03-prototype-spec.md（页面/交互/状态/权限/计费/密钥路由/监控日志/验收）
+  所有色值/尺寸/圆角/阴影均取自 02 文档的 CSS 自定义属性（--c-*/--fs-*/--sp-*/--r-*/--sh-*/--z-*）。
+  图标一律文本符号，无图标字体、无外部资源。
+-->
+<style>
+/* ============================================================
+   ① 设计令牌 —— 逐字取自 02-design-system.md（暗色默认 + 亮色映射 + 双密度）
+   ============================================================ */
+:root{
+  /* surface */
+  --c-bg:#0d1117; --c-surface-1:#161b22; --c-surface-2:#1b212a; --c-surface-3:#21262d;
+  --c-surface-code:#0b0f14; --c-surface-hover:#2a313a; --c-border:#30363d; --c-border-subtle:#222831; --c-border-hover:#3d444d;
+  /* fg */
+  --c-fg:#e6edf3; --c-fg-muted:#8b949e; --c-fg-subtle:#6e7681; --c-fg-invert:#ffffff;
+  /* accent */
+  --c-accent:#58a6ff; --c-accent-strong:#1f6feb; --c-accent-strong-hover:#2a7ff5; --c-focus-ring:rgba(88,166,255,.45); --c-login-glow:#16273d;
+  /* semantic */
+  --c-ok:#3fb950; --c-warn:#d29922; --c-danger:#f85149; --c-info:#58a6ff; --c-neutral:#7d8590; --c-purple:#bc8cff; --c-agent:#bc8cff;
+  /* upstream */
+  --c-upstream-ok:#3fb950; --c-upstream-degraded:#d29922; --c-upstream-halfopen:#bc8cff; --c-upstream-open:#f85149; --c-upstream-disabled:#6e7681; --c-upstream-limit:#d29922;
+  /* tier */
+  --c-tier-free:#7d8590; --c-tier-free-bg:rgba(125,133,144,.12); --c-tier-free-border:#424851;
+  --c-tier-standard:#58a6ff; --c-tier-standard-bg:rgba(88,166,255,.12); --c-tier-standard-border:#1f6feb;
+  --c-tier-pro:#a371f7; --c-tier-pro-bg:rgba(163,113,247,.14); --c-tier-pro-border:#8957e5;
+  /* border aux */
+  --c-ok-border:#2b6a35; --c-warn-border:#5c4a12; --c-danger-border:#6e2b28; --c-info-border:#1f6feb; --c-danger-note-border:#5c2a12;
+  --c-ok-bg:rgba(63,185,80,.12); --c-warn-bg:rgba(210,153,34,.12); --c-danger-bg:rgba(248,81,73,.12); --c-info-bg:rgba(31,111,235,.12);
+  /* type */
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono","Courier New",monospace; --font-num:var(--font-mono);
+  --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-base:14px; --fs-lg:15px; --fs-xl:17px; --fs-2xl:23px; --fs-3xl:28px;
+  --lh-tight:1.25; --lh-snug:1.45; --lh-base:1.6; --lh-relaxed:1.65;
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-kpi:650; --ls-tight:-.02em; --ls-label:.06em; --ls-group:.09em;
+  /* space */
+  --sp-0:0; --sp-1:4px; --sp-2:8px; --sp-2h:10px; --sp-3:12px; --sp-4:16px; --sp-5:22px; --sp-6:28px; --sp-7:32px; --sp-8:40px; --sp-9:80px;
+  /* radius */
+  --r-sm:4px; --r-1:6px; --r-2:10px; --r-3:14px; --r-full:999px;
+  /* shadow */
+  --sh-1:0 1px 2px rgba(0,0,0,.35); --sh-2:0 10px 30px rgba(0,0,0,.45); --sh-drawer:-18px 0 44px rgba(0,0,0,.5); --sh-focus:0 0 0 3px var(--c-focus-ring);
+  /* z */
+  --z-base:0; --z-topbar:30; --z-scrim:55; --z-drawer:60; --z-navscrim:65; --z-nav:70; --z-login:80; --z-toast:90; --z-tooltip:100;
+  /* motion */
+  --dur-instant:80ms; --dur-fast:120ms; --dur-base:180ms; --dur-slow:220ms; --dur-sheen:1400ms; --dur-bar:200ms;
+  --ease-standard:cubic-bezier(.22,.61,.36,1); --ease-out:cubic-bezier(0,0,.2,1); --ease-in-out:cubic-bezier(.4,0,.2,1);
+  /* layout */
+  --layout-nav-w:232px; --layout-topbar-h:52px; --layout-nav-w-narrow:min(272px,84vw); --layout-max:1200px; --layout-gutter:var(--sp-5); --grid-gap:var(--sp-3);
+  --grid-cards-4:repeat(4,minmax(0,1fr)); --grid-cards-2:repeat(2,minmax(0,1fr)); --grid-two:1.3fr 1fr;
+  /* density (default compact) */
+  --density-row-h:36px; --density-cell-pad-y:11px; --density-cell-pad-x:var(--sp-3); --density-card-pad:var(--sp-4);
+  --density-main-pad:var(--sp-5) var(--sp-5) var(--sp-9); --density-control-h:30px; --density-gap:var(--sp-3);
+}
+:root[data-theme="light"]{
+  --c-bg:#f6f8fa; --c-surface-1:#ffffff; --c-surface-2:#f0f2f5; --c-surface-3:#eaeef2; --c-surface-code:#f6f8fa; --c-surface-hover:#eaeef2;
+  --c-border:#d0d7de; --c-border-subtle:#e5e8eb; --c-border-hover:#b7bec6;
+  --c-fg:#1f2328; --c-fg-muted:#59636e; --c-fg-subtle:#818b98; --c-fg-invert:#ffffff;
+  --c-accent:#0969da; --c-accent-strong:#0969da; --c-accent-strong-hover:#0a5fc0; --c-focus-ring:rgba(9,105,218,.35); --c-login-glow:#dbeafe;
+  --c-ok:#1a7f37; --c-warn:#9a6700; --c-danger:#d1242f; --c-info:#0969da; --c-neutral:#59636e; --c-purple:#8250df; --c-agent:#8250df;
+  --c-upstream-ok:#1a7f37; --c-upstream-degraded:#9a6700; --c-upstream-halfopen:#8250df; --c-upstream-open:#d1242f; --c-upstream-disabled:#818b98;
+  --c-tier-free:#59636e; --c-tier-standard:#0969da; --c-tier-pro:#8250df;
+  --sh-1:0 1px 2px rgba(0,0,0,.08); --sh-2:0 10px 30px rgba(0,0,0,.12); --sh-drawer:-18px 0 44px rgba(0,0,0,.18);
+}
+:root[data-density="cozy"]{
+  --density-row-h:44px; --density-cell-pad-y:14px; --density-cell-pad-x:var(--sp-4); --density-card-pad:var(--sp-5);
+  --density-main-pad:var(--sp-6) var(--sp-4) var(--sp-9); --density-control-h:42px; --density-gap:var(--sp-4);
+}
+/* 旧变量别名（零侵入迁移，02 §2.2） */
+:root{ --bg:var(--c-bg); --panel:var(--c-surface-1); --panel2:var(--c-surface-2); --chip:var(--c-surface-3);
+  --fg:var(--c-fg); --dim:var(--c-fg-muted); --accent:var(--c-accent); --ok:var(--c-ok); --warn:var(--c-warn); --err:var(--c-danger); --pur:var(--c-purple);
+  --s1:var(--sp-1); --s2:var(--sp-2); --s3:var(--sp-3); --s4:var(--sp-4); --s5:var(--sp-5); --r1:var(--r-1); --r2:var(--r-2); --r3:var(--r-3);
+  --mono:var(--font-mono); --focus:var(--c-focus-ring); --nav-w:var(--layout-nav-w); --topbar-h:var(--layout-topbar-h); }
+
+/* 组件级 / 布局级令牌（P1-1 修复：逐条取自 02 §5.1–§5.10、§6.1–§6.2，消除写死值） */
+:root{
+  /* 按钮 §5.1 */
+  --btn-h-sm:26px; --btn-h-md:var(--density-control-h); --btn-pad-x:10px; --btn-radius:var(--r-1); --btn-gap:var(--sp-1);
+  --btn-primary-bg:var(--c-accent-strong); --btn-primary-bg-hover:var(--c-accent-strong-hover); --btn-primary-fg:var(--c-fg-invert);
+  --btn-danger-border:var(--c-danger-border); --btn-danger-fg:#ff9d96; --btn-danger-bg-hover:#3d1d1b; --btn-disabled-opacity:.45;
+  /* 输入 §5.2 */
+  --input-h:var(--density-control-h); --input-bg:var(--c-surface-3); --input-border:var(--c-border); --input-border-hover:var(--c-border-hover);
+  --input-border-focus:var(--c-accent); --input-radius:var(--r-1); --input-pad:6px 10px; --input-focus-ring:0 0 0 3px var(--c-focus-ring);
+  /* 抽屉 §5.4 */
+  --drawer-w:min(580px,94vw); --drawer-w-narrow:min(440px,94vw); --drawer-head-pad:14px var(--sp-4);
+  --drawer-body-pad:var(--sp-4); --drawer-foot-pad:var(--sp-3) var(--sp-4); --scrim-bg:rgba(0,0,0,.55);
+  /* 卡片 §5.5 */
+  --card-radius:var(--r-2); --card-hover-border:var(--c-border-hover);
+  /* 徽标 §5.6 */
+  --chip-radius:var(--r-full); --chip-pad:1px 9px; --chip-dot-size:6px;
+  /* 进度 §5.7 */
+  --bar-h-inline:5px; --bar-h-block:8px;
+  /* Toast §5.8 */
+  --toast-max-w:560px; --toast-pad:10px 15px; --toast-left-w:3px;
+  /* 空态 §5.9 */
+  --empty-pad:var(--sp-5); --empty-icon-size:22px; --empty-font-size:var(--fs-md);
+  /* 骨架 §5.10 */
+  --skel-h:14px; --skel-radius:var(--r-1);
+  /* 顶栏 §6.1 */
+  --topbar-pad:10px var(--sp-5); --topbar-blur:blur(8px); --topbar-bg:color-mix(in srgb, var(--c-surface-1) 88%, transparent);
+  /* 导航项 §6.2 */
+  --nav-item-h:34px; --nav-item-pad:7px var(--sp-4) 7px 13px; --nav-item-radius:var(--r-1); --nav-item-indicator-w:3px;
+}
+
+/* ============================================================
+   ② 基础
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font-sans); font-size:var(--fs-base); line-height:var(--lh-base);
+  color:var(--c-fg); background:var(--c-bg);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--c-accent); text-decoration:none}
+a:hover{text-decoration:underline}
+button{font-family:inherit}
+h1,h2,h3,h4{margin:0; font-weight:var(--fw-semibold)}
+.num,.mono,td.mono,th,table td.num,.kv .v,.v.tnum{font-variant-numeric:tabular-nums}
+td.num,th.num,.num{text-align:right}
+:focus-visible{outline:2px solid var(--c-accent); outline-offset:1px}
+.dim{color:var(--c-fg-muted)}
+.subtle{color:var(--c-fg-subtle)}
+.mono{font-family:var(--font-mono)}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important}
+}
+
+/* ============================================================
+   ③ 应用壳层（02 §6.0 三区 Grid）
+   ============================================================ */
+#shell{display:grid; grid-template-areas:"top top" "nav main"; grid-template-columns:var(--layout-nav-w) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr); height:100dvh}
+#topbar{grid-area:top; z-index:var(--z-topbar)}
+#sidenav{grid-area:nav; border-right:1px solid var(--c-border); background:var(--c-surface-1); overflow-y:auto; min-height:0}
+#main{grid-area:main; overflow-y:auto; min-height:0}
+.main-inner{max-width:var(--layout-max); margin:0 auto; padding:var(--density-main-pad)}
+
+/* TopBar（02 §6.1） */
+#topbar{display:flex; align-items:center; gap:var(--sp-3); padding:var(--topbar-pad); min-height:var(--layout-topbar-h);
+  background:var(--topbar-bg); backdrop-filter:var(--topbar-blur);
+  border-bottom:1px solid var(--c-border); position:sticky; top:0}
+.logo{font-weight:var(--fw-semibold); font-size:var(--fs-lg); white-space:nowrap}
+.logo em{color:var(--c-accent); font-style:normal; font-weight:var(--fw-regular); font-size:var(--fs-sm); margin-left:6px}
+.topbar-sub{color:var(--c-fg-muted); font-size:var(--fs-sm); display:flex; gap:var(--sp-3); white-space:nowrap}
+.spacer{flex:1}
+.tb-btn{background:transparent; border:1px solid var(--c-border); color:var(--c-fg-muted); border-radius:var(--r-1);
+  height:var(--density-control-h); min-width:32px; padding:0 var(--sp-2h); cursor:pointer; font-size:var(--fs-md); transition:all var(--dur-fast)}
+.tb-btn:hover{border-color:var(--c-accent); color:var(--c-fg)}
+#nav-toggle{display:none}
+.role-preview{background:var(--c-surface-3); border:1px solid var(--c-border); color:var(--c-fg); border-radius:var(--r-1);
+  height:var(--density-control-h); padding:0 var(--sp-2); font-size:var(--fs-sm); cursor:pointer}
+
+/* SideNav（02 §6.2） */
+.nav-glabel{font-size:var(--fs-2xs); letter-spacing:var(--ls-group); text-transform:uppercase; color:var(--c-fg-muted);
+  padding:var(--sp-4) var(--sp-4) var(--sp-1); font-weight:var(--fw-semibold)}
+.nav button{display:flex; align-items:center; gap:var(--sp-2h); width:100%; text-align:left; background:transparent; border:0;
+  color:var(--c-fg-muted); font-size:var(--fs-md); padding:var(--nav-item-pad); cursor:pointer;
+  border-left:var(--nav-item-indicator-w) solid transparent; transition:background var(--dur-fast), color var(--dur-fast)}
+.nav button:hover{background:var(--c-surface-hover); color:var(--c-fg)}
+.nav button.on{color:var(--c-fg); font-weight:var(--fw-semibold); background:color-mix(in srgb,var(--c-accent) 14%,transparent); border-left-color:var(--c-accent)}
+.nv-ic{width:18px; display:inline-block; text-align:center; color:var(--c-fg-muted)}
+.nav button.on .nv-ic{color:var(--c-accent)}
+.nav-badge{margin-left:auto; font-size:var(--fs-2xs); background:var(--c-danger-bg); color:var(--c-danger);
+  border:1px solid var(--c-danger-border); border-radius:var(--r-full); padding:0 6px}
+.nav-foot{margin-top:var(--sp-4); padding:var(--sp-3) var(--sp-4) var(--sp-6); border-top:1px solid var(--c-border);
+  display:flex; flex-direction:column; gap:var(--sp-2h); font-size:var(--fs-sm); color:var(--c-fg-muted)}
+.nav-foot .row{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2)}
+.nav-foot select{background:var(--c-surface-3); border:1px solid var(--c-border); color:var(--c-fg); border-radius:var(--r-1); padding:2px 6px; font-size:var(--fs-sm)}
+
+/* ============================================================
+   ④ 主内容通用（面包屑 / 区块标题 / 卡片 / KPI）
+   ============================================================ */
+.crumb{font-size:var(--fs-xs); color:var(--c-fg-muted); margin-bottom:var(--sp-2h)}
+.crumb b{color:var(--c-fg); font-weight:var(--fw-medium)}
+.page-head{display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp-4); margin-bottom:var(--sp-4); flex-wrap:wrap}
+.page-head h1{font-size:var(--fs-xl)}
+.page-head .lead{color:var(--c-fg-muted); font-size:var(--fs-sm); margin-top:2px}
+.actions{display:flex; gap:var(--sp-2); flex-wrap:wrap}
+
+h2.sec{font-size:var(--fs-md); font-weight:var(--fw-semibold); display:flex; align-items:center; gap:var(--sp-2h);
+  margin:var(--sp-6) 0 var(--sp-3)}
+h2.sec::before{content:""; width:3px; height:14px; background:var(--c-accent); border-radius:2px; display:inline-block}
+h2.sec .hint{font-weight:var(--fw-regular); color:var(--c-fg-muted); font-size:var(--fs-sm)}
+
+.cards{display:grid; grid-template-columns:var(--grid-cards-4); gap:var(--grid-gap)}
+.card{background:var(--c-surface-1); border:1px solid var(--c-border); border-radius:var(--r-2); padding:var(--density-card-pad); transition:border-color var(--dur-fast)}
+.card:hover{border-color:var(--c-border-hover)}
+.card .k{font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:var(--ls-label); color:var(--c-fg-muted); font-weight:var(--fw-semibold)}
+.card .v{font-size:var(--fs-2xl); font-weight:var(--fw-kpi); letter-spacing:var(--ls-tight); font-family:var(--font-num);
+  font-variant-numeric:tabular-nums; margin:var(--sp-1) 0; line-height:var(--lh-tight)}
+.card .v.warn{color:var(--c-warn)} .card .v.danger{color:var(--c-danger)} .card .v.ok{color:var(--c-ok)}
+.card .sub{border-top:1px dashed var(--c-border); padding-top:var(--sp-2); margin-top:var(--sp-2); font-size:var(--fs-xs); color:var(--c-fg-muted)}
+.card .v.big{font-size:var(--fs-3xl)}
+.block{background:var(--c-surface-1); border:1px solid var(--c-border); border-radius:var(--r-2); padding:var(--density-card-pad); margin-top:var(--sp-3); overflow-x:auto}
+.two{display:grid; grid-template-columns:var(--grid-two); gap:var(--grid-gap); margin-top:var(--sp-3)}
+.two .block{margin-top:0}
+
+/* ============================================================
+   ⑤ 表格（02 §5.3）
+   ============================================================ */
+table{width:100%; border-collapse:collapse; font-size:var(--fs-md)}
+th{font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.04em; color:var(--c-fg-muted); font-weight:var(--fw-semibold);
+  text-align:left; padding:var(--density-cell-pad-y) var(--density-cell-pad-x); border-bottom:1px solid var(--c-border); white-space:nowrap; background:var(--c-surface-1)}
+td{padding:var(--density-cell-pad-y) var(--density-cell-pad-x); border-bottom:1px solid var(--c-border-subtle); vertical-align:middle}
+tbody tr:hover{background:var(--c-surface-2)}
+td.act{text-align:right; white-space:nowrap}
+td.act button{margin-left:var(--sp-1)}
+tr.click{position:relative}
+/* 可点击行：.row-act 撑满整行的真实按钮（P1-3 修复，对齐 02 §5.3 / 03 §9.4） */
+tr.click .row-act{position:absolute; inset:0; width:100%; height:100%; padding:0; margin:0; border:0; background:transparent;
+  opacity:0; cursor:pointer; font:inherit; color:inherit; text-align:left}
+tr.click .row-act:focus{outline:none}
+tr.click .row-act:focus-visible{outline:2px solid var(--c-accent); outline-offset:-2px; opacity:1; background:var(--c-surface-2)}
+
+/* ============================================================
+   ⑥ 按钮 / 输入（02 §5.1 §5.2）
+   ============================================================ */
+button.b,label.b{border-radius:var(--btn-radius); height:var(--density-control-h); padding:0 var(--btn-pad-x); font-size:var(--fs-sm);
+  background:var(--c-surface-3); border:1px solid var(--c-border); color:var(--c-fg); cursor:pointer;
+  display:inline-flex; align-items:center; gap:var(--btn-gap); transition:all var(--dur-fast)}
+button.b:hover{border-color:var(--c-accent)}
+button.b:active{transform:translateY(1px)}
+button.b:disabled{opacity:var(--btn-disabled-opacity); cursor:not-allowed}
+button.b:hover,label.b:hover{border-color:var(--c-accent)}
+button.b:active,label.b:active{transform:translateY(1px)}
+/* AC-03 / P2-10：锚点定位高亮（#/diag/cheat-reason 等） */
+.anchor-target{outline:2px solid var(--c-accent); outline-offset:2px; border-radius:var(--r-2)}
+button.pri{background:var(--btn-primary-bg); border-color:var(--btn-primary-bg); color:var(--btn-primary-fg); font-weight:var(--fw-semibold); font-size:var(--fs-md)}
+button.pri:hover{background:var(--btn-primary-bg-hover); border-color:var(--btn-primary-bg-hover)}
+button.danger{background:transparent; border-color:var(--btn-danger-border); color:var(--btn-danger-fg)}
+button.danger:hover{background:var(--btn-danger-bg-hover)}
+button.bare{background:transparent; border:0; color:var(--c-fg-muted); height:auto; padding:2px 6px}
+button.bare:hover{color:var(--c-fg); background:var(--c-surface-3); border-radius:var(--r-1)}
+input[type=text],input[type=search],input[type=email],input[type=number],select,textarea{
+  background:var(--input-bg); border:1px solid var(--input-border); color:var(--c-fg); border-radius:var(--input-radius);
+  height:var(--input-h); padding:0 var(--sp-2h); font-size:var(--fs-base); width:100%}
+textarea{height:auto; padding:var(--input-pad); line-height:var(--lh-base); resize:vertical}
+input:hover,select:hover,textarea:hover{border-color:var(--input-border-hover)}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--input-border-focus); box-shadow:var(--input-focus-ring)}
+input[type=search]{max-width:280px}
+.f{display:grid; grid-template-columns:130px 1fr; gap:var(--sp-2h); align-items:start; margin-bottom:var(--sp-3)}
+.f > label{font-size:var(--fs-sm); color:var(--c-fg-muted); padding-top:7px}
+.f .help{grid-column:2; font-size:var(--fs-xs); color:var(--c-fg-subtle); margin-top:var(--sp-1)}
+.inline-form{display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap}
+.inline-form input[type=text]{max-width:360px}
+
+/* ============================================================
+   ⑦ 徽标 / 进度条 / 提示（02 §5.6 §5.7 §5.8）
+   ============================================================ */
+.chip{display:inline-flex; align-items:center; gap:var(--sp-1); border-radius:var(--chip-radius); padding:var(--chip-pad); font-size:var(--fs-sm);
+  border:1px solid var(--c-border); background:var(--c-surface-3); color:var(--c-fg-muted); white-space:nowrap}
+.chip .dot{width:var(--chip-dot-size); height:var(--chip-dot-size); border-radius:50%; background:currentColor; display:inline-block}
+.chip.g{color:var(--c-ok); border-color:var(--c-ok-border); background:var(--c-ok-bg)}
+.chip.y{color:var(--c-warn); border-color:var(--c-warn-border); background:var(--c-warn-bg)}
+.chip.r{color:var(--c-danger); border-color:var(--c-danger-border); background:var(--c-danger-bg)}
+.chip.b{color:var(--c-info); border-color:var(--c-info-border); background:var(--c-info-bg)}
+.chip.n{color:var(--c-neutral)}
+.chip.tier-free{color:var(--c-tier-free); border-color:var(--c-tier-free-border); background:var(--c-tier-free-bg)}
+.chip.tier-std{color:var(--c-tier-standard); border-color:var(--c-tier-standard-border); background:var(--c-tier-standard-bg)}
+.chip.tier-pro{color:var(--c-tier-pro); border-color:var(--c-tier-pro-border); background:var(--c-tier-pro-bg)}
+.bar{display:inline-block; width:70px; height:var(--bar-h-inline); border-radius:var(--r-full); background:var(--c-surface-3); overflow:hidden; vertical-align:middle}
+.bar > i{display:block; height:100%; background:var(--c-ok); border-radius:var(--r-full); transition:width var(--dur-bar)}
+.bar > i.y{background:var(--c-warn)} .bar > i.r{background:var(--c-danger)} .bar > i.b{background:var(--c-accent)}
+.pcttxt{font-size:var(--fs-xs); color:var(--c-fg-muted); margin-left:5px; font-variant-numeric:tabular-nums}
+.hbar{display:grid; grid-template-columns:minmax(80px,180px) 1fr 64px; gap:var(--sp-2h); align-items:center; margin:var(--sp-1) 0; font-size:var(--fs-sm)}
+.hbar .track{background:var(--c-surface-3); border-radius:var(--r-full); height:var(--bar-h-block); overflow:hidden}
+.hbar .track > i{display:block; height:100%; background:var(--c-accent); border-radius:var(--r-full)}
+.hbar .track > i.ok{background:var(--c-ok)} .hbar .track > i.warn{background:var(--c-warn)} .hbar .track > i.r{background:var(--c-danger)}
+.hbar .vl{text-align:right; font-variant-numeric:tabular-nums; color:var(--c-fg-muted)}
+.note{border:1px solid var(--c-border); background:var(--c-surface-2); border-radius:var(--r-1); padding:var(--sp-2h) var(--sp-3);
+  font-size:var(--fs-sm); line-height:var(--lh-relaxed); color:var(--c-fg); margin:var(--sp-3) 0}
+.note.warn{border-color:var(--c-warn-border); background:var(--c-warn-bg)}
+.note.bad{border-color:var(--c-danger-note-border); background:var(--c-danger-bg)}
+.note.ok{border-color:var(--c-ok-border); background:var(--c-ok-bg)}
+.note b{font-weight:var(--fw-semibold)}
+.banner{display:flex; align-items:center; gap:var(--sp-2h); border-radius:var(--r-1); padding:var(--sp-2h) var(--sp-3);
+  font-size:var(--fs-sm); border:1px solid var(--c-border); background:var(--c-surface-2); margin-bottom:var(--sp-3); cursor:pointer}
+.banner.g{border-color:var(--c-ok-border); background:var(--c-ok-bg); color:var(--c-ok)}
+.banner.y{border-color:var(--c-warn-border); background:var(--c-warn-bg); color:var(--c-warn)}
+.banner.r{border-color:var(--c-danger-border); background:var(--c-danger-bg); color:var(--c-danger)}
+.banner .txt{color:var(--c-fg)}
+pre,code.k{font-family:var(--font-mono); font-size:var(--fs-sm)}
+pre{background:var(--c-surface-code); border:1px solid var(--c-border); border-radius:var(--r-1); padding:var(--sp-3);
+  overflow-x:auto; line-height:var(--lh-relaxed); margin:var(--sp-2) 0}
+.secret{background:var(--c-surface-code); border:1px solid var(--c-accent); border-radius:var(--r-1); padding:var(--sp-3);
+  font-family:var(--font-mono); font-size:var(--fs-base); word-break:break-all; color:var(--c-fg); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3)}
+
+/* ============================================================
+   ⑧ 抽屉 / 遮罩 / Toast（02 §5.4 §5.8 §7.2）
+   ============================================================ */
+#scrim{position:fixed; inset:0; background:var(--scrim-bg); z-index:var(--z-scrim); opacity:0; pointer-events:none; transition:opacity var(--dur-slow)}
+#scrim.on{opacity:1; pointer-events:auto}
+#drawer{position:fixed; top:0; right:0; bottom:0; width:var(--drawer-w); background:var(--c-surface-1); border-left:1px solid var(--c-border);
+  box-shadow:var(--sh-drawer); z-index:var(--z-drawer); transform:translateX(101%); transition:transform var(--dur-slow) var(--ease-standard);
+  display:flex; flex-direction:column}
+#drawer.on{transform:none}
+#drawer:focus{outline:none}
+#drawer .dh{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); padding:var(--drawer-head-pad); border-bottom:1px solid var(--c-border)}
+#drawer .dh h3{font-size:var(--fs-base)}
+#drawer .db{padding:var(--drawer-body-pad); overflow-y:auto; flex:1}
+#drawer .df{padding:var(--drawer-foot-pad); border-top:1px solid var(--c-border); display:flex; gap:var(--sp-2); justify-content:flex-end}
+.step{display:flex; gap:var(--sp-2h); font-size:var(--fs-sm); padding:var(--sp-1) 0; font-family:var(--font-mono)}
+.step .t{color:var(--c-fg-muted); width:70px; text-align:right; flex:none}
+.step .st{width:52px; flex:none; font-weight:var(--fw-semibold)}
+.step .st.ok{color:var(--c-ok)} .step .st.fail{color:var(--c-danger)}
+#toast{position:fixed; bottom:var(--sp-5); left:50%; transform:translateX(-50%); z-index:var(--z-toast);
+  display:flex; flex-direction:column; gap:var(--sp-2); max-width:var(--toast-max-w); width:max-content}
+#toast > div{background:var(--c-surface-1); border:1px solid var(--c-border); border-left:var(--toast-left-w) solid var(--c-info); border-radius:var(--r-2);
+  padding:var(--toast-pad); box-shadow:var(--sh-2); font-size:var(--fs-sm)}
+#toast > div.g{border-left-color:var(--c-ok)} #toast > div.y{border-left-color:var(--c-warn)} #toast > div.r{border-left-color:var(--c-danger)}
+
+/* ============================================================
+   ⑨ 空态 / 骨架屏（02 §5.9 §5.10）
+   ============================================================ */
+.empty{text-align:center; color:var(--c-fg-muted); padding:var(--empty-pad); font-size:var(--empty-font-size)}
+.empty .ic{font-size:var(--empty-icon-size); opacity:.6; margin-bottom:var(--sp-2)}
+.skel{background:var(--c-surface-2); border-radius:var(--skel-radius); position:relative; overflow:hidden; height:var(--skel-h); margin:var(--sp-2) 0}
+.skel::after{content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+  animation:sheen var(--dur-sheen) infinite linear}
+:root[data-theme="light"] .skel::after{background:linear-gradient(90deg,transparent,rgba(0,0,0,.05),transparent)}
+@keyframes sheen{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.skel.w60{width:60%} .skel.w80{width:80%} .skel.w40{width:40%}
+
+/* ============================================================
+   ⑩ 页面专用（Tab / 套餐卡 / 阶梯 / 可用性条 / 合规卡）
+   ============================================================ */
+.tabs{display:flex; gap:var(--sp-1); border-bottom:1px solid var(--c-border); margin-bottom:var(--sp-3); flex-wrap:wrap}
+.tabs button{background:transparent; border:0; border-bottom:2px solid transparent; color:var(--c-fg-muted); cursor:pointer;
+  padding:var(--sp-2) var(--sp-3); font-size:var(--fs-md); display:inline-flex; align-items:center; gap:6px}
+.tabs button.on{color:var(--c-fg); border-bottom-color:var(--c-accent); font-weight:var(--fw-semibold)}
+.tabs .cnt{font-size:var(--fs-2xs); background:var(--c-danger-bg); color:var(--c-danger); border:1px solid var(--c-danger-border); border-radius:var(--r-full); padding:0 6px}
+.plans{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--grid-gap)}
+.plan{background:var(--c-surface-1); border:1px solid var(--c-border); border-radius:var(--r-2); padding:var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-3)}
+.plan.current{border-color:var(--c-accent)}
+.plan .tierchip{margin-bottom:var(--sp-1)}
+.plan .price{font-size:var(--fs-2xl); font-weight:var(--fw-kpi); font-family:var(--font-num); letter-spacing:var(--ls-tight)}
+.plan .price small{font-size:var(--fs-sm); color:var(--c-fg-muted); font-weight:var(--fw-regular)}
+.plan ul{margin:0; padding:0; list-style:none; font-size:var(--fs-sm); color:var(--c-fg-muted); display:flex; flex-direction:column; gap:6px}
+.plan ul li{display:flex; gap:var(--sp-2); align-items:flex-start}
+.plan ul li::before{content:"●"; color:var(--c-accent); font-size:9px; line-height:1.8}
+.plan ul li.off::before{content:"○"; color:var(--c-fg-subtle)}
+.plan ul li.off{color:var(--c-fg-subtle)}
+.ladder{font-family:var(--font-mono); font-size:var(--fs-sm); display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap}
+.ladder .node{background:var(--c-surface-3); border:1px solid var(--c-border); border-radius:var(--r-1); padding:2px 8px}
+.ladder .arrow{color:var(--c-accent)}
+.ladder .cross{border-color:var(--c-tier-pro-border); color:var(--c-tier-pro)}
+.uptime{display:flex; gap:2px; align-items:flex-end}
+.uptime i{flex:1; height:28px; border-radius:2px; background:var(--c-ok)}
+.uptime i.y{background:var(--c-warn)} .uptime i.r{background:var(--c-danger)}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:var(--grid-gap)}
+.grid-3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--grid-gap)}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:var(--sp-2) var(--sp-4); font-size:var(--fs-sm)}
+.kv dt{color:var(--c-fg-muted)} .kv dd{margin:0; font-variant-numeric:tabular-nums}
+.docs{display:grid; grid-template-columns:200px minmax(0,1fr) 160px; gap:var(--sp-5)}
+.docs .toc{position:sticky; top:var(--sp-4); align-self:start; font-size:var(--fs-sm)}
+.docs .toc a{display:block; padding:3px 0; color:var(--c-fg-muted)} .docs .toc a:hover{color:var(--c-fg)}
+.pill-tabs{display:inline-flex; gap:var(--sp-1); background:var(--c-surface-3); border:1px solid var(--c-border); border-radius:var(--r-1); padding:2px}
+.pill-tabs button{background:transparent; border:0; color:var(--c-fg-muted); padding:3px 10px; border-radius:var(--r-sm); cursor:pointer; font-size:var(--fs-sm)}
+.pill-tabs button.on{background:var(--c-accent-strong); color:var(--c-fg-invert)}
+.three-stage{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--grid-gap); margin-top:var(--sp-3)}
+.stage{background:var(--c-surface-1); border:1px solid var(--c-border); border-radius:var(--r-2); padding:var(--sp-3); position:relative}
+.stage.on{border-color:var(--c-accent)}
+.stage .n{font-size:var(--fs-2xs); color:var(--c-fg-muted); text-transform:uppercase; letter-spacing:var(--ls-label)}
+.stage h4{font-size:var(--fs-md); margin:var(--sp-1) 0}
+.stage p{font-size:var(--fs-sm); color:var(--c-fg-muted); margin:var(--sp-1) 0 var(--sp-2)}
+.metric-tile{display:flex; flex-direction:column; gap:2px}
+.metric-tile .mv{font-family:var(--font-num); font-variant-numeric:tabular-nums; font-size:var(--fs-xl); font-weight:var(--fw-semibold)}
+.ratingmatrix td.c{text-align:center}
+details.faq{border:1px solid var(--c-border); border-radius:var(--r-1); padding:var(--sp-2h) var(--sp-3); margin-bottom:var(--sp-2); background:var(--c-surface-1)}
+details.faq summary{cursor:pointer; font-size:var(--fs-md); font-weight:var(--fw-medium)}
+details.faq p{font-size:var(--fs-sm); color:var(--c-fg-muted); margin:var(--sp-2) 0 0}
+.up{color:var(--c-ok)} .down{color:var(--c-danger)}
+.ro{color:var(--c-fg-muted)}
+.roleobx{display:flex; gap:var(--sp-2); align-items:center}
+
+/* ≤1020px：主从两栏 / KPI 折列（02 §4.3） */
+@media (max-width:1020px){
+  .cards{grid-template-columns:var(--grid-cards-2)}
+  .two{grid-template-columns:1fr}
+  .plans{grid-template-columns:1fr}
+  .docs{grid-template-columns:1fr}
+  .docs .toc{position:static}
+  .three-stage,.grid-3{grid-template-columns:1fr}
+}
+/* ≤960px：侧栏收进抽屉（02 §6.0） */
+@media (max-width:960px){
+  #shell{grid-template-areas:"top" "main"; grid-template-columns:1fr}
+  #sidenav{position:fixed; top:0; bottom:0; left:0; width:var(--layout-nav-w-narrow); z-index:var(--z-nav);
+    transform:translateX(-100%); transition:transform var(--dur-slow) var(--ease-standard)}
+  #sidenav.on{transform:none}
+  #nav-toggle{display:inline-flex}
+  #navscrim{position:fixed; inset:0; background:var(--scrim-bg); z-index:var(--z-navscrim); opacity:0; pointer-events:none; transition:opacity var(--dur-slow)}
+  #navscrim.on{opacity:1; pointer-events:auto}
+  .topbar-sub .hide-narrow{display:none}
+}
+@media (max-width:720px){
+  .cards{grid-template-columns:1fr}
+  .f{grid-template-columns:1fr}
+  .f > label{padding-top:0}
+  .grid-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<!-- ============================================================ 壳层（02 §6.0） -->
+<div id="shell">
+  <!-- TopBar（02 §6.1 / 规格 §1.4） -->
+  <header id="topbar">
+    <button class="tb-btn" id="nav-toggle" aria-label="打开导航">☰</button>
+    <div class="logo">api&#8209;relay <em class="hide-narrow">管理面板</em></div>
+    <div class="topbar-sub">
+      <span class="hide-narrow">v1.0.0</span>
+      <span class="hide-narrow" id="clock"></span>
+      <span title="数据新鲜度">新鲜度 <b id="fresh">—</b></span>
+      <span class="chip" title="原型：本页所有数值为示意数据，非真实统计">示意</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="roleobx">
+      <label class="dim" style="font-size:var(--fs-xs)">角色预览</label>
+      <select class="role-preview" id="role-select" aria-label="角色预览">
+        <option value="owner">管理员 owner</option>
+        <option value="sre">运维 sre</option>
+        <option value="finance">财务 finance</option>
+        <option value="auditor">审计 auditor</option>
+        <option value="client">客户 client</option>
+      </select>
+    </div>
+    <button class="tb-btn" id="density-btn" title="切换密度（compact/cozy）">▤</button>
+    <button class="tb-btn" id="theme-btn" title="切换主题（暗/亮）">◐</button>
+    <button class="tb-btn" id="refresh-btn" title="刷新">↻</button>
+    <button class="tb-btn" id="logout-btn" title="退出">⎋</button>
+  </header>
+  <!-- SideNav（由脚本按角色渲染，02 §6.2） -->
+  <aside id="sidenav" class="nav" aria-label="主导航"></aside>
+  <!-- 主内容（唯一滚动容器） -->
+  <main id="main"><div class="main-inner" id="view" tabindex="-1"></div></main>
+</div>
+<nav id="navscrim" aria-hidden="true"></nav>
+<div id="scrim"></div>
+<!-- 抽屉（02 §5.4；规格 §1.4 / I1 / I13） -->
+<aside id="drawer" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+  <div class="dh"><h3 id="drawer-title">详情</h3><button class="b bare" id="drawer-close" aria-label="关闭抽屉">✕</button></div>
+  <div class="db" id="drawer-body"></div>
+  <div class="df" id="drawer-foot"></div>
+</aside>
+<div id="toast" aria-live="polite"></div>
+
+<!-- ============================================================ 客户面页面模板 -->
+<!-- §3.A.1 开发者控制台概览 #/portal -->
+<template id="tpl-portal">
+  <div class="crumb">我的 › <b>控制台概览</b></div>
+  <div class="page-head">
+    <div>
+      <h1>欢迎回来，<span class="mono">acme-corp</span></h1>
+      <div class="lead">当前套餐 <span class="chip tier-std"><span class="dot"></span>标准 standard</span> · 计费周期 2026-10-01 ~ 2026-10-30</div>
+    </div>
+    <div class="actions">
+      <label class="b">切换窗口
+        <select style="height:auto;border:0;background:transparent;width:auto" id="portal-win">
+          <option>5m</option><option>1h</option><option selected>24h</option><option>7d</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="banner y" data-roles="client" data-drawer="budget-warn">
+    <span>▲</span><span class="txt">预算预警：本周期预算已用 <b>78%</b>，接近 100% 时调用将返回 <b>402</b>（不是限流）。<u>查看详情 / 升级套餐</u></span>
+  </div>
+
+  <!-- KPI 4 列（§3.A.1 字段表） -->
+  <div class="cards">
+    <div class="card"><div class="k">本周期 Token</div><div class="v">1,284,930</div><div class="sub">输入 812,400 · 输出 472,530</div></div>
+    <div class="card"><div class="k">本周期成本</div><div class="v">¥7.4200</div><div class="sub">按 token 计费 · 不含税</div></div>
+    <div class="card"><div class="k">预算余额</div><div class="v">¥2.5800</div><div class="sub">已用 <span class="bar"><i class="y" style="width:78%"></i></span> <span class="pcttxt">78%</span></div></div>
+    <div class="card"><div class="k">请求成功率</div><div class="v ok">99.62%</div><div class="sub">失败 0.38% · 自动恢复 12 次</div></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2 class="sec">近 24h 用量 <span class="hint">tokens / 小时（示意）</span></h2>
+      <div class="block">
+        <div class="hbar"><span>00:00–06:00</span><span class="track"><i style="width:22%"></i></span><span class="vl">142K</span></div>
+        <div class="hbar"><span>06:00–12:00</span><span class="track"><i style="width:64%"></i></span><span class="vl">418K</span></div>
+        <div class="hbar"><span>12:00–18:00</span><span class="track"><i style="width:100%"></i></span><span class="vl">655K</span></div>
+        <div class="hbar"><span>18:00–24:00</span><span class="track"><i class="warn" style="width:41%"></i></span><span class="vl">270K</span></div>
+      </div>
+      <h2 class="sec">最近请求</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>时间</th><th>模型</th><th>结果</th><th class="num">耗时</th><th class="num">token</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">10:41:22</td><td class="mono">mimo-v2.5-pro</td><td><span class="chip g"><span class="dot"></span>200</span></td><td class="num">1.2s</td><td class="num">3,204</td></tr>
+            <tr><td class="mono">10:40:05</td><td class="mono">mimo-v2.5</td><td><span class="chip g"><span class="dot"></span>200</span></td><td class="num">840ms</td><td class="num">1,180</td></tr>
+            <tr><td class="mono">10:38:51</td><td class="mono">旗舰</td><td><span class="chip y">▲ 429 已自动重试</span></td><td class="num">2.6s</td><td class="num">2,940</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h2 class="sec">我的密钥</h2>
+      <div class="block">
+        <div class="kv">
+          <dt>脱敏</dt><dd class="mono">sk&#8209;relay&#8209;••••••••&#8209;4f2a</dd>
+          <dt>指纹</dt><dd class="mono">a91c04ef</dd>
+          <dt>状态</dt><dd><span class="chip g"><span class="dot"></span>生效中</span></dd>
+        </div>
+        <div class="actions" style="margin-top:var(--sp-3)"><button class="b" data-goto="keys">查看 / 轮换 →</button></div>
+      </div>
+      <h2 class="sec">套餐</h2>
+      <div class="block">
+        <div class="kv"><dt>当前</dt><dd>标准 standard</dd><dt>圈定模型</dt><dd>4 个</dd><dt>预算</dt><dd>¥10.0000</dd></div>
+        <div style="margin-top:var(--sp-2)"><span class="bar"><i class="y" style="width:78%"></i></span> <span class="pcttxt">已用 78%</span></div>
+        <div class="actions" style="margin-top:var(--sp-3)"><button class="b pri" data-goto="plans">升级套餐</button></div>
+      </div>
+      <h2 class="sec">快速开始</h2>
+      <div class="block">
+<pre>base_url = "https://api-relay.example.com/v1"
+api_key  = "sk-relay-..."</pre>
+        <button class="b" data-copy='base_url = "https://api-relay.example.com/v1"
+api_key  = "sk-relay-..."'>复制</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- §3.A.2 我的密钥 #/keys -->
+<template id="tpl-keys">
+  <div class="crumb">我的 › <b>我的密钥</b></div>
+  <div class="page-head">
+    <div><h1>我的密钥</h1><div class="lead">自助申请 · 查看 · 自检 · 轮换。明文只显示一次，忘了只能轮换。</div></div>
+    <div class="actions">
+      <button class="b pri" data-roles="client" data-drawer="apply-key">申请新密钥</button>
+      <button class="b" data-export="keys">导出 CSV</button>
+      <button class="b" data-export="keys" data-fmt="json">导出 JSON</button>
+    </div>
+  </div>
+
+  <!-- 粘贴自检（whoami 客户版，§3.A.2 / I8） -->
+  <h2 class="sec">粘贴自检 <span class="hint">粘贴你手上的 key，服务端换算指纹后判断（明文不写日志、不落盘）</span></h2>
+  <div class="block">
+    <div class="inline-form">
+      <input type="text" id="whoami-input" placeholder="sk-relay-xxxxxxxx...（示例：任意输入演示四态）">
+      <button class="b" id="whoami-btn">自检</button>
+      <button class="b bare" id="whoami-clear">清空</button>
+    </div>
+    <div id="whoami-result" aria-live="polite" style="margin-top:var(--sp-3)"></div>
+  </div>
+
+  <h2 class="sec">密钥列表</h2>
+  <div class="block">
+    <div class="inline-form" style="margin-bottom:var(--sp-3)">
+      <input type="search" id="keys-search" placeholder="按备注 / 指纹搜索">
+      <span class="dim" style="font-size:var(--fs-xs)">筛选：</span>
+      <button class="b bare" data-kfilter="active">生效中</button>
+      <button class="b bare" data-kfilter="attention">需关注</button>
+      <button class="b bare" data-kfilter="all">全部</button>
+    </div>
+    <table id="keys-table">
+      <thead><tr><th>备注</th><th>指纹</th><th>状态</th><th>套餐</th><th class="num">模型数</th><th>额度</th><th>预算</th><th>到期</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr data-kstate="active" data-text="生产-主 a91c04ef">
+          <td>生产-主</td><td class="mono">a91c04ef</td><td><span class="chip g"><span class="dot"></span>生效中</span></td>
+          <td><span class="chip tier-std">standard</span></td><td class="num">4</td>
+          <td><span class="bar"><i class="b" style="width:64%"></i></span><span class="pcttxt">64%</span></td>
+          <td><span class="bar"><i class="y" style="width:78%"></i></span><span class="pcttxt">78%</span></td>
+          <td class="mono">2027-01-01</td>
+          <td class="act"><button class="b bare" data-drawer="key-detail">详情</button><button class="b bare" data-drawer="rotate-key">轮换</button></td>
+        </tr>
+        <tr data-kstate="attention" data-text="测试-临时 7b3e19aa">
+          <td>测试-临时</td><td class="mono">7b3e19aa</td><td><span class="chip y">▲ 将耗尽</span></td>
+          <td><span class="chip tier-std">standard</span></td><td class="num">2</td>
+          <td><span class="bar"><i class="y" style="width:92%"></i></span><span class="pcttxt">92%</span></td>
+          <td><span class="bar"><i class="r" style="width:100%"></i></span><span class="pcttxt">100%</span></td>
+          <td class="mono">2026-11-20</td>
+          <td class="act"><button class="b bare" data-drawer="key-detail">详情</button><button class="b bare" data-drawer="rotate-key">轮换</button></td>
+        </tr>
+        <tr data-kstate="pending" data-text="新申请 待审批">
+          <td>新申请</td><td class="mono">—</td><td><span class="chip b">● 待审批</span></td>
+          <td><span class="chip tier-pro">pro</span></td><td class="num">6</td><td class="dim">—</td><td class="dim">—</td><td class="dim">—</td>
+          <td class="act"><button class="b bare" data-drawer="req-detail">进度</button></td>
+        </tr>
+        <tr data-kstate="disabled" data-text="旧-已停用 03cc77d1">
+          <td>旧-已停用</td><td class="mono">03cc77d1</td><td><span class="chip n">○ 已停用</span></td>
+          <td><span class="chip tier-free">free</span></td><td class="num">1</td><td class="dim">—</td><td class="dim">—</td><td class="mono">2026-08-31</td>
+          <td class="act"><button class="b bare" data-action="enable-key">启用</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="empty" id="keys-empty" hidden><div class="ic">⚑</div><div>没有匹配的密钥</div><div class="dim" style="font-size:12px">清空搜索/筛选试试；还没有密钥就点「申请新密钥」</div></div>
+  </div>
+
+  <div class="note">安全提示：指纹 = <code class="k">sha256("relay-key:"+key)</code> 前 8 位十六进制，是"你手上的 key"与"网关签发的 key"之间唯一安全的对照物。服务端只存 sha256，**永不回显明文**。</div>
+</template>
+
+<!-- §3.A.3 用量与账单 #/usage -->
+<template id="tpl-usage">
+  <div class="crumb">我的 › <b>用量与账单</b></div>
+  <div class="page-head">
+    <div><h1>用量与账单</h1><div class="lead">币种 ¥ 人民币 · 不含税 ｜ 周期默认 30 天（对齐阶段1 Q4/Q8）</div></div>
+    <div class="actions">
+      <select id="usage-period" style="width:auto"><option>本周期 (2026-10-01~10-30)</option><option>上月</option><option>自定义区间</option></select>
+      <button class="b pri" data-export="usage">导出对账单 CSV</button>
+      <button class="b" data-export="usage" data-fmt="json">导出 JSON</button>
+    </div>
+  </div>
+
+  <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="card"><div class="k">本周期 Token</div><div class="v">1,284,930</div><div class="sub">输入 812,400 · 输出 472,530</div></div>
+    <div class="card"><div class="k">本周期成本</div><div class="v">¥7.4200</div><div class="sub">按 token</div></div>
+    <div class="card"><div class="k">预算占用</div><div class="v">78%</div><div class="sub"><span class="bar"><i class="y" style="width:78%"></i></span> ¥10.0000 中已用 ¥7.4200</div></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2 class="sec">按模型用量</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>模型</th><th class="num">请求数</th><th class="num">输入 token</th><th class="num">输出 token</th><th class="num">成本</th><th>占比</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">mimo-v2.5-pro</td><td class="num">1,204</td><td class="num">402,100</td><td class="num">221,400</td><td class="num">¥4.1200</td><td><span class="hbar" style="grid-template-columns:1fr 48px"><span class="track"><i style="width:62%"></i></span><span class="vl">62%</span></span></td></tr>
+            <tr><td class="mono">mimo-v2.5</td><td class="num">862</td><td class="num">286,300</td><td class="num">171,200</td><td class="num">¥2.2100</td><td><span class="hbar" style="grid-template-columns:1fr 48px"><span class="track"><i style="width:30%"></i></span><span class="vl">30%</span></span></td></tr>
+            <tr><td class="mono">旗舰（阶梯）</td><td class="num">318</td><td class="num">124,000</td><td class="num">79,930</td><td class="num">¥1.0900</td><td><span class="hbar" style="grid-template-columns:1fr 48px"><span class="track"><i style="width:8%"></i></span><span class="vl">8%</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h2 class="sec">计费口径</h2>
+      <div class="block">
+        <div class="kv">
+          <dt>额度(token)</dt><dd>给多少量</dd>
+          <dt>预算(¥)</dt><dd>给多少预算（钱按钱算）</dd>
+          <dt>超预算</dt><dd><span class="chip r">■ 返回 402</span>（非 429）</dd>
+          <dt>周期</dt><dd>30 天</dd>
+        </div>
+      </div>
+      <h2 class="sec">账单明细</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>日期</th><th class="num">请求</th><th class="num">token</th><th class="num">成本</th><th class="num">累计</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">10-24</td><td class="num">410</td><td class="num">318,200</td><td class="num">¥1.8400</td><td class="num">¥7.4200</td></tr>
+            <tr><td class="mono">10-23</td><td class="num">522</td><td class="num">402,110</td><td class="num">¥2.3100</td><td class="num">¥5.5800</td></tr>
+            <tr><td class="mono">10-22</td><td class="num">388</td><td class="num">296,400</td><td class="num">¥1.7100</td><td class="num">¥3.2700</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 改进项2：用量账单/对账报表 —— WTCS「计数 × 单价 = 金额」三段式可复算（映射改进方案 §2.3、§5.2、§5.3） -->
+  <h2 class="sec">可对账节省额 WTCS <span class="hint">计数 × 单价 = 金额；客户可自助复算（勿用"省 40%"话术）</span></h2>
+  <div class="note ok">本表每个金额都可用 <b>原始计数 × 单价</b> 复算，与你的后台账单逐项核对；点「导出对账单 CSV」可拿到含公式列的文件自行重算。任一项「单价未配置」标为 <b>待补价</b>，<b>不计入合计</b>（避免虚增）。<span class="dim">（改进方案 §2.3：WTCS = [失败浪费下降] + [预检·默认0] + [缓存净省] + [无效重试避免]；数值为示意。）</span></div>
+  <div class="block">
+    <table>
+      <thead><tr><th>成分</th><th class="num">原始计数</th><th>单价</th><th class="num">金额(¥)</th><th>公式（可复算）</th></tr></thead>
+      <tbody>
+        <tr><td>① 失败浪费 token 下降</td><td class="num">91,000 token</td><td class="mono">¥8.0/M</td><td class="num">¥0.7280</td><td class="mono">(132K−41K)×8.0/1e6</td></tr>
+        <tr><td>② 预检避免成本</td><td class="num">176 次</td><td class="mono">¥0（默认）</td><td class="num">¥0.0000</td><td class="mono">默认 0，随上游实测再放开</td></tr>
+        <tr><td>③ 缓存净省</td><td class="num">480,000 token</td><td class="mono">¥3.0/M</td><td class="num">¥1.4400</td><td class="mono">CT×(p_in−p_cache)/1e6</td></tr>
+        <tr><td>④ 无效重试避免</td><td class="num">46 次</td><td class="mono">¥0.0210</td><td class="num">¥0.9660</td><td class="mono">(DR_C−DR_E)×单次成本</td></tr>
+      </tbody>
+      <tfoot>
+        <tr style="border-top:1px solid var(--c-border)"><td><b>合计 WTCS（本周期）</b></td><td class="num dim">四成分之和</td><td class="dim">—</td><td class="num"><b>¥3.1340</b></td><td class="mono">①+②+③+④</td></tr>
+        <tr><td>外推（×12.17，30天→年）</td><td class="num dim">—</td><td class="dim">示意</td><td class="num">¥38.15/年</td><td class="mono">仅示意，随 S1 实测替换</td></tr>
+      </tfoot>
+    </table>
+    <h2 class="sec">单价表 <span class="hint">providers[].cost</span></h2>
+    <table>
+      <thead><tr><th>模型</th><th class="num">p_in(¥/M)</th><th class="num">p_out(¥/M)</th><th class="num">p_cache(¥/M)</th><th>来源</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">mimo-v2.5-pro</td><td class="num">3.00</td><td class="num">6.00</td><td class="num">0.30</td><td><span class="chip g">cost_source=config</span></td></tr>
+        <tr><td class="mono">mimo-v2.5</td><td class="num">1.00</td><td class="num">2.00</td><td class="num">0.10</td><td><span class="chip g">cost_source=config</span></td></tr>
+        <tr><td class="mono">agnes-2.5-pro</td><td class="num dim">—</td><td class="num dim">—</td><td class="num dim">—</td><td><span class="chip y">▲ 待补价（不计入合计）</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<!-- §3.A.4 套餐目录 / 定价 #/plans（客户视角 + 运营视角共用） -->
+<template id="tpl-plans">
+  <div class="crumb" data-roles="client">资源 › <b>套餐目录</b></div>
+  <div class="crumb" data-roles="owner,sre,finance,auditor">经营 › <b>套餐目录 / 定价</b></div>
+  <div class="page-head">
+    <div>
+      <h1>套餐目录</h1>
+      <div class="lead">套餐 = 分层 × 模型白名单 × 预算闸（对齐 README §9「三根轴 + 一条闸」）</div>
+    </div>
+    <div class="actions">
+      <span class="note warn" style="margin:0;font-size:var(--fs-xs)">定价为**占位示意**（阶段1 M2 缺失，待替换）</span>
+      <button class="b" data-roles="owner,sre">＋ 新建套餐</button>
+    </div>
+  </div>
+
+  <div class="plans">
+    <div class="plan" data-tier="free">
+      <div class="tierchip"><span class="chip tier-free">一键 free</span></div>
+      <div class="price">免费 <small>纯转发</small></div>
+      <ul>
+        <li>20 rpm · 并发 4</li>
+        <li>周期额度 200K token</li>
+        <li>预检 off · 归因 <b>off</b>（错误体一字节不加）</li>
+        <li class="off">档位阶梯（smart routing）</li>
+      </ul>
+      <button class="b" data-roles="owner,sre,finance,auditor" data-action="plan-manage">编辑 / 下架</button>
+    </div>
+    <div class="plan current" data-tier="standard">
+      <div class="tierchip"><span class="chip tier-std">标准 standard</span> <span class="chip b">当前套餐</span></div>
+      <div class="price">按 token <small>· 建议入门</small></div>
+      <ul>
+        <li>300 rpm · 并发 32</li>
+        <li>周期额度：无限</li>
+        <li>预检 observe · 归因 <b>header</b></li>
+        <li>档位阶梯（smart routing）</li>
+      </ul>
+      <button class="b pri" data-roles="client" data-drawer="apply-plan" disabled>当前套餐</button>
+      <button class="b" data-roles="owner,sre,finance,auditor" data-action="plan-manage">编辑 / 下架</button>
+    </div>
+    <div class="plan" data-tier="pro">
+      <div class="tierchip"><span class="chip tier-pro">专业 pro</span></div>
+      <div class="price">订阅 <small>· 尊贵</small></div>
+      <ul>
+        <li>1200 rpm · 并发 128</li>
+        <li>周期额度 5M token</li>
+        <li>预检 enforce · 归因 <b>full</b></li>
+        <li>档位阶梯（smart routing）</li>
+      </ul>
+      <button class="b pri" data-roles="client" data-drawer="apply-plan">选择此套餐</button>
+      <button class="b" data-roles="owner,sre,finance,auditor" data-action="plan-manage">编辑 / 下架</button>
+    </div>
+  </div>
+
+  <!-- 改进项2：套餐字段增强（额度 / SLA / 可观测能力 / 定价），映射改进方案 §4.1 第4项、§4.4 定价区间 -->
+  <h2 class="sec">套餐能力对比 <span class="hint">额度 / SLA / 可观测能力 / 定价（定价为占位示意，M2 缺失待替换）</span></h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>套餐</th><th>定价</th><th>周期额度</th><th>SLA</th><th>可观测能力</th><th>归因投递</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip tier-free">入门 free</span></td><td class="dim">免费</td><td>200K token</td><td class="dim">无 SLA</td><td class="dim">仅用量计数</td><td class="mono">off（纯管道）</td></tr>
+        <tr><td><span class="chip tier-std">标准 standard</span></td><td class="mono">按 token</td><td>无限</td><td>99.5%（示意）</td><td>用量/成本/轨迹</td><td class="mono">header</td></tr>
+        <tr><td><span class="chip tier-pro">专业 pro</span></td><td class="mono">¥29–199/月<sup>[示意]</sup></td><td>5M token</td><td>99.9%（示意）</td><td>用量/成本/轨迹 + <b>WTCS 对账报表</b> + SLO</td><td class="mono">full</td></tr>
+      </tbody>
+    </table>
+    <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">改进方案 §4.4：Pro 溢价区间 ¥29–59/月（中度）~ ¥99–199/月（重度）；Pro 以「额度 + SLA + 可观测与可诊断」为主锚，「可对账节省额」作价值证明与续费依据。</div>
+  </div>
+
+  <h2 class="sec">模型阶梯矩阵 <span class="hint">● 圈定可用 / ○ 不适用（hover 看兜底顺序）</span></h2>
+  <div class="block">
+    <table class="ratingmatrix">
+      <thead><tr><th>套餐 \ 模型</th><th class="c">mimo-v2.5-pro</th><th class="c">mimo-v2.5</th><th class="c">旗舰</th><th class="c">平衡</th><th class="c">极速</th><th class="c">旗舰-any</th></tr></thead>
+      <tbody>
+        <tr><td>free</td><td class="c">○</td><td class="c">●</td><td class="c">○</td><td class="c">○</td><td class="c">○</td><td class="c">○</td></tr>
+        <tr><td>standard</td><td class="c" title="mimo-v2.5-pro → mimo-v2.5">●</td><td class="c">●</td><td class="c" title="agnes-2.5-pro → agnes-3.0-flash → agnes-2.5-flash">●</td><td class="c" title="agnes-2.5-flash → agnes-2.0-flash → agnes-3.0-flash">●</td><td class="c">○</td><td class="c">●</td></tr>
+        <tr><td>pro</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td class="c" title="agnes-2.0-flash → agnes-2.5-flash → agnes-3.0-flash">●</td><td class="c">●</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec">档位阶梯（modelLadders）</h2>
+  <div class="block">
+    <div class="ladder" style="margin-bottom:var(--sp-2)"><b>旗舰</b> <span class="node">agnes-2.5-pro</span><span class="arrow">→</span><span class="node">agnes-3.0-flash</span><span class="arrow">→</span><span class="node">agnes-2.5-flash</span> <span class="dim">（同厂）</span></div>
+    <div class="ladder" style="margin-bottom:var(--sp-2)"><b>极速</b> <span class="node">agnes-2.0-flash</span><span class="arrow">→</span><span class="node">agnes-2.5-flash</span><span class="arrow">→</span><span class="node">agnes-3.0-flash</span> <span class="dim">（同厂）</span></div>
+    <div class="ladder"><b>旗舰-any</b> <span class="node">agnes…</span><span class="arrow">→</span><span class="node cross">落到 MiMo</span> <span class="dim">（跨厂商，另起名字）</span></div>
+    <div class="note">同厂阶梯只换"模型"，跨厂商兜底另起名字——避免"往下推一档"偷偷变成"换一家供应商"（README §3）。</div>
+  </div>
+
+  <h2 class="sec">常见问题</h2>
+  <details class="faq"><summary>计费用什么口径？</summary><p>两个独立口径：额度(token) 管"给多少量"，预算(¥) 管"给多少预算"。钱按钱算——同样 ¥10 折成 token 取决于输入输出比例，用 token 额度冒充只能猜。</p></details>
+  <details class="faq"><summary>预算花完会怎样？</summary><p>返回 <b>402</b>（不是 429）。这是"没钱了"而非"被限流"，客户端**不要**重试，请升级套餐。</p></details>
+  <details class="faq"><summary>怎么升级套餐？</summary><p>在套餐卡点「选择此套餐」提交申请 → 运营审批 → 签发新 key（白名单与预算更新）。</p></details>
+  <details class="faq"><summary>阶梯换了模型我会知道吗？</summary><p>会。响应头回显 <code class="k">x-relay-model-requested</code> / <code class="k">x-relay-model-served</code> / <code class="k">x-relay-ladder</code>，界面也显示"本次由第几阶答"。</p></details>
+</template>
+
+<!-- §3.A.5 API 文档 / 快速开始 #/docs -->
+<template id="tpl-docs">
+  <div class="crumb">资源 › <b>API 文档 / 快速开始</b></div>
+  <div class="docs">
+    <aside class="toc">
+      <strong>目录</strong>
+      <a href="#docs-quick">快速开始</a>
+      <a href="#docs-sdk">SDK 示例</a>
+      <a href="#docs-endpoints">端点表</a>
+      <a href="#docs-errors">错误码表</a>
+      <a href="#docs-verify">自验命令</a>
+      <a href="#docs-models">模型清单</a>
+    </aside>
+    <article>
+      <div class="page-head"><div><h1>API 文档</h1><div class="lead">OpenAI 兼容：任何 OpenAI SDK 只改 <code class="k">base_url</code> + <code class="k">api_key</code></div></div>
+        <div class="actions"><span class="pill-tabs" id="lang-tabs"><button class="on" data-lang="python">Python</button><button data-lang="node">Node</button><button data-lang="curl">curl</button></span></div>
+      </div>
+
+      <h2 class="sec" id="docs-quick">快速开始（3 步）</h2>
+      <div class="block">
+        <ol style="font-size:var(--fs-sm);line-height:var(--lh-relaxed)">
+          <li>把 <code class="k">base_url</code> 指向 <code class="k">https://api-relay.example.com/v1</code></li>
+          <li>把 <code class="k">api_key</code> 换成你的 key（一次明文）</li>
+          <li>发一次请求，确认 200</li>
+        </ol>
+      </div>
+
+      <h2 class="sec" id="docs-sdk">SDK 示例</h2>
+      <div class="block">
+<pre id="sdk-code">from openai import OpenAI
+client = OpenAI(base_url="https://api-relay.example.com/v1", api_key="sk-relay-...")
+r = client.chat.completions.create(model="旗舰", messages=[{"role":"user","content":"你好"}])
+print(r.choices[0].message.content)</pre>
+        <button class="b" data-copy-sel="#sdk-code">复制代码</button>
+      </div>
+      <div class="note">自动重试封装：<code class="k">src/client/auto-retry.ts</code> 把归因卡片变成一行 <code class="k">autoRetry()</code>（429/5xx 按 retryAfterMs 自动重试；402/401/403/404 立即抛错）。</div>
+
+      <h2 class="sec" id="docs-endpoints">端点表</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>方法</th><th>路径</th><th>说明</th><th>流式</th><th>备注</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">POST</td><td class="mono">/v1/chat/completions</td><td>对话补全</td><td>● SSE</td><td>核心端点</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/completions</td><td>文本补全</td><td>●</td><td>—</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/embeddings</td><td>向量</td><td>—</td><td>路由在但无上游支持</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/models</td><td>模型清单</td><td>—</td><td>含阶梯名</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/responses</td><td>Responses API</td><td>●</td><td>—</td></tr>
+            <tr><td class="mono">POST</td><td class="mono">/v1/messages</td><td>Anthropic Messages</td><td>●</td><td>仅 agnes 系</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/quota</td><td>额度查询</td><td>—</td><td>公开只读（需白名单）</td></tr>
+            <tr><td class="mono">GET</td><td class="mono">/v1/attribution/catalog</td><td>归因目录</td><td>—</td><td>失败归因契约</td></tr>
+          </tbody>
+        </table>
+        <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">图例：● 支持流式 / ○ 不支持；— 不适用。</div>
+      </div>
+
+      <h2 class="sec" id="docs-errors">错误码表</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th class="num">HTTP</th><th>failure_reason</th><th>quick_action</th><th>可重试</th><th>你该做什么</th></tr></thead>
+          <tbody>
+            <tr><td class="num mono">401</td><td class="mono">auth_invalid</td><td class="mono">check_key</td><td>○</td><td>换 key / 去「我的密钥」自检</td></tr>
+            <tr><td class="num mono">402</td><td class="mono">quota_exhausted</td><td class="mono">top_up_balance</td><td>○</td><td>预算用完——升级套餐（别重试）</td></tr>
+            <tr><td class="num mono">403</td><td class="mono">model_not_allowed</td><td class="mono">enable_model</td><td>○</td><td>该 key 未开通此模型</td></tr>
+            <tr><td class="num mono">404</td><td class="mono">model_not_found</td><td class="mono">fix_model_name</td><td>○</td><td>模型名写错（附拼写建议）</td></tr>
+            <tr><td class="num mono">429</td><td class="mono">rate_limited</td><td class="mono">retry_with_backoff</td><td>●</td><td>按 retryAfterMs 退避</td></tr>
+            <tr><td class="num mono">502</td><td class="mono">upstream_error</td><td class="mono">retry_or_failover</td><td>●</td><td>上游故障，已自动兜底</td></tr>
+            <tr><td class="num mono">503</td><td class="mono">upstream_error</td><td class="mono">retry_with_backoff</td><td>●</td><td>无可用上游（区分"模型不存在"）</td></tr>
+          </tbody>
+        </table>
+        <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">图例：● 可重试 / ○ 不可重试（重试前先看 failure_reason）。</div>
+      </div>
+
+      <h2 class="sec" id="docs-verify">自验命令</h2>
+      <div class="block">
+<pre>curl -i https://api-relay.example.com/v1/chat/completions \
+  -H "Authorization: Bearer sk-relay-..." \
+  -H "x-relay-verify-nonce: 12345" \
+  -d '{"model":"旗舰","messages":[{"role":"user","content":"hi"}]}'
+# 响应头 x-relay-content-hmac 可用于自行证明字节未被篡改</pre>
+        <button class="b" data-copy="curl -i https://api-relay.example.com/v1/chat/completions -H 'Authorization: Bearer sk-relay-...' -H 'x-relay-verify-nonce: 12345'">复制 curl</button>
+      </div>
+
+      <h2 class="sec" id="docs-models">模型清单 <span class="hint">GET /v1/models</span></h2>
+      <div class="block">
+        <div class="inline-form"><button class="b" id="load-models">加载模型清单</button><span class="dim" id="models-hint" style="font-size:var(--fs-xs)"></span></div>
+        <div id="models-list" style="margin-top:var(--sp-3)"></div>
+      </div>
+    </article>
+    <aside style="font-size:var(--fs-sm);color:var(--c-fg-muted)"><strong>在此页</strong><div style="margin-top:var(--sp-2)">快速开始 / SDK / 端点 / 错误码 / 自验 / 模型</div></aside>
+  </div>
+</template>
+
+<!-- §3.A.6 状态页 / 可用性 #/status -->
+<template id="tpl-status">
+  <div class="crumb">资源 › <b>状态页</b></div>
+  <div class="page-head">
+    <div><h1>状态页 / 可用性</h1><div class="lead">只读、聚合、脱敏——不含上游密钥与内部名</div></div>
+    <div class="actions"><button class="b pri" data-drawer="subscribe">订阅状态更新</button><button class="b" data-copy="api-relay 当前状态：全部正常">复制状态摘要</button></div>
+  </div>
+
+  <div class="banner g"><span>●</span><span class="txt">全部正常 — 所有系统运行中（配色 + 符号双编码）</span></div>
+
+  <h2 class="sec">组件状态</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>组件</th><th>状态</th><th class="num">近24h成功率</th><th class="num">近24h p95</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>API 网关</td><td><span class="chip g"><span class="dot"></span>运行中</span></td><td class="num">99.62%</td><td class="num">1.42s</td><td class="dim">—</td></tr>
+        <tr><td>上游 A</td><td><span class="chip g"><span class="dot"></span>健康</span></td><td class="num">99.81%</td><td class="num">1.20s</td><td class="dim">主用</td></tr>
+        <tr><td>上游 B</td><td><span class="chip y">▲ 降级</span></td><td class="num">97.40%</td><td class="num">2.80s</td><td>错误率升高，已降权</td></tr>
+        <tr><td>上游 C</td><td><span class="chip r">■ 熔断</span></td><td class="num">—</td><td class="num">—</td><td>已摘除，流量切兜底</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec">90 天可用性</h2>
+  <div class="block">
+    <div class="uptime" aria-label="90 天可用性">
+      <!-- 示意条形：绿色正常、黄色降级、红色中断 -->
+    </div>
+    <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">左=90 天前 · 右=今天 · hover 查看当天成功率</div>
+  </div>
+
+  <h2 class="sec">事件历史</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>时间</th><th>影响</th><th>状态</th><th>摘要</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">10-24 09:12</td><td><span class="chip y">▲ 部分降级</span></td><td><span class="chip g">已恢复</span></td><td>上游 B 延迟升高，已自动降权并兜底，客户影响可忽略</td></tr>
+        <tr><td class="mono">10-20 22:03</td><td><span class="chip r">■ 中断</span></td><td><span class="chip g">已恢复</span></td><td>上游 C 故障触发熔断，请求自动切换，客户仍获 200</td></tr>
+        <tr><td class="mono">10-12 03:40</td><td><span class="chip b">● 维护</span></td><td><span class="chip g">已完成</span></td><td>例行维护，无可用性影响</td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<!-- ============================================================ 运营面页面模板 -->
+<!-- §3.B.1 总览 #/ov -->
+<template id="tpl-ov">
+  <div class="crumb">值守 › <b>总览</b></div>
+  <!-- P1-4 / AC-05：导航重排提示 + 「按旧顺序查看」开关 -->
+  <div class="note" id="nav-reorder-note" style="display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+    <span>提示：导航已按「值守 / 经营 / 客户 / 系统」重排（阶段2 §6.4 风险①）。</span>
+    <span class="actions"><button class="b" id="toggle-nav-order">按旧顺序查看</button><button class="b bare" id="dismiss-nav-note" aria-label="关闭提示">✕ 关闭</button></span>
+  </div>
+  <div class="page-head">
+    <div><h1>总览</h1><div class="lead">现在健康吗？降损层在起作用吗？谁在花钱？</div></div>
+    <div class="actions">
+      <button class="b pri" data-copy="【值班摘要】总体正常 / 上游 3 健康 1 降级 1 熔断 / 失败主因 rate_limited / 降损层开销 0.6‰ / Key 预警 2">一键值班摘要</button>
+      <select id="ov-win" style="width:auto"><option>5m</option><option>1h</option><option selected>24h</option><option>7d</option></select>
+    </div>
+  </div>
+
+  <!-- 两条横幅分开（ADR-016） -->
+  <div class="banner r" data-drawer="key-invalid">
+    <span>■</span><span class="txt"><b>客户端提交的 key 不对</b>（近1h N 次 401）— 与"上游拒绝密钥"是两条不同横幅，修复动作完全不同。<u>点此查看处置</u></span>
+  </div>
+  <div class="banner y" data-drawer="upstream-invalid">
+    <span>▲</span><span class="txt"><b>上游拒绝了你配置的密钥</b>（上游 B）— 需到上游控制台确认密钥有效性。<u>点此查看处置</u></span>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="k">请求数</div><div class="v">12,480</div><div class="sub">近 24h</div></div>
+    <div class="card"><div class="k">Token</div><div class="v">4.82M</div><div class="sub">输入 3.10M / 输出 1.72M</div></div>
+    <div class="card"><div class="k">p95 延迟</div><div class="v warn">2.40s</div><div class="sub">超阈示意（目标 &lt;2s）</div></div>
+    <div class="card"><div class="k">归因投递率</div><div class="v ok">86.4%</div><div class="sub">≥80% 达标</div></div>
+    <div class="card"><div class="k">自动恢复数</div><div class="v">318</div><div class="sub">重试后成功</div></div>
+    <div class="card"><div class="k">无效重试数</div><div class="v warn">42</div><div class="sub">60s 同 payload</div></div>
+    <div class="card"><div class="k">预检拦截数</div><div class="v">176</div><div class="sub">省下的上游往返</div></div>
+    <div class="card"><div class="k">降损开销占比</div><div class="v ok">0.6‰</div><div class="sub">不该超 1‰</div></div>
+  </div>
+
+  <!-- 🆕 毛利速览（阶段1 G3） -->
+  <h2 class="sec">毛利速览 <span class="hint">实付成本 vs 牌面价（定价占位待替换）</span></h2>
+  <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div class="card"><div class="k">本周期实付成本</div><div class="v">¥3,126.40</div><div class="sub">平台侧</div></div>
+    <div class="card"><div class="k">本周期牌面价</div><div class="v">¥4,208.00</div><div class="sub">对外报价（占位）</div></div>
+    <div class="card"><div class="k">差额毛利</div><div class="v ok">¥1,081.60</div><div class="sub">毛利率 25.7%</div></div>
+  </div>
+
+  <!-- 🆕 事故聚合横幅 -->
+  <div class="banner y" data-goto="route" style="margin-top:var(--sp-3)">
+    <span>▲</span><span class="txt">事故聚合：熔断上游 <b>1</b> · 半开 <b>1</b> · 近1h 5xx 率 <b>0.38%</b> → 点此进入路由策略处置</span>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2 class="sec">请求 × 错误 时间序列 <span class="hint">示意</span></h2>
+      <div class="block"><div class="skel" style="height:60px"></div><div class="dim" style="font-size:var(--fs-xs)">柱图占位（原型静态示意）</div></div>
+      <h2 class="sec">降损收益</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>收益项</th><th class="num">次数</th><th class="num">估算节省</th></tr></thead>
+          <tbody>
+            <tr><td>预检拦截</td><td class="num">176</td><td class="num">¥12.40</td></tr>
+            <tr><td>自动恢复</td><td class="num">318</td><td class="num">— 人工介入减少</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h2 class="sec">平台能力</h2>
+      <div class="block">
+        <div class="kv">
+          <dt>多上游聚合</dt><dd><span class="chip g">● 启用</span></dd>
+          <dt>熔断半开</dt><dd><span class="chip g">● 启用</span></dd>
+          <dt>档位阶梯</dt><dd><span class="chip g">● 启用</span></dd>
+          <dt>预算闸</dt><dd><span class="chip g">● 启用</span></dd>
+          <dt>X-Relay-Mode</dt><dd class="mono">full</dd>
+        </div>
+      </div>
+      <h2 class="sec">分层 × 客户类型</h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>分层</th><th class="num">请求</th><th class="num">占比</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip tier-free">free</span></td><td class="num">1,240</td><td class="num">9.9%</td></tr>
+            <tr><td><span class="chip tier-std">standard</span></td><td class="num">8,110</td><td class="num">65.0%</td></tr>
+            <tr><td><span class="chip tier-pro">pro</span></td><td class="num">3,130</td><td class="num">25.1%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- §3.B.2 客户与租户管理 #/users -->
+<template id="tpl-users">
+  <div class="crumb">经营 › <b>客户与租户管理</b></div>
+  <div class="page-head">
+    <div><h1>客户与租户管理</h1><div class="lead">以 tenantId 为中心：一个租户下挂多把 key、多套餐</div></div>
+    <div class="actions">
+      <button class="b pri" data-drawer="create-key">新建 Key</button>
+      <button class="b" data-drawer="apply-approval">发起审批</button>
+      <button class="b" data-export="users">导出 CSV</button>
+      <button class="b" data-export="users" data-fmt="json">导出 JSON</button>
+    </div>
+  </div>
+  <div class="block">
+    <div class="inline-form" style="margin-bottom:var(--sp-3)">
+      <input type="search" id="users-search" placeholder="按 id / 备注 / 指纹 / tenantId 搜索">
+      <button class="b bare" data-ufilter="active">生效中</button><button class="b bare" data-ufilter="attention">需关注</button><button class="b bare" data-ufilter="all">全部</button>
+    </div>
+    <table id="users-table">
+      <thead><tr><th>租户 / 备注</th><th>指纹</th><th>状态</th><th>分层</th><th class="num">模型数</th><th>额度</th><th>预算</th><th>到期</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr class="tenant-head" data-text="acme-corp"><td colspan="9" style="background:var(--c-surface-2);font-weight:var(--fw-semibold)">
+          <span class="nv-ic">▸</span> acme-corp · <span class="dim">key 2 把 · 预算占用 78% · 最近到期 2026-11-20</span></td></tr>
+        <tr data-ustate="active" data-text="acme-corp 生产-主 a91c04ef">
+          <td>生产-主</td><td class="mono">a91c04ef</td><td><span class="chip g"><span class="dot"></span>生效中</span></td><td><span class="chip tier-std">standard</span></td><td class="num">4</td>
+          <td><span class="bar"><i class="b" style="width:64%"></i></span><span class="pcttxt">64%</span></td><td><span class="bar"><i class="y" style="width:78%"></i></span><span class="pcttxt">78%</span></td><td class="mono">2027-01-01</td>
+          <td class="act"><button class="b bare" data-drawer="key-detail">编辑</button><button class="b bare" data-action="reset-quota">重置额度</button><button class="b bare" data-drawer="more-actions">更多…</button></td>
+        </tr>
+        <tr data-ustate="attention" data-text="acme-corp 测试-临时 7b3e19aa">
+          <td>测试-临时</td><td class="mono">7b3e19aa</td><td><span class="chip y">▲ 将耗尽</span></td><td><span class="chip tier-std">standard</span></td><td class="num">2</td>
+          <td><span class="bar"><i class="y" style="width:92%"></i></span><span class="pcttxt">92%</span></td><td><span class="bar"><i class="r" style="width:100%"></i></span><span class="pcttxt">100%</span></td><td class="mono">2026-11-20</td>
+          <td class="act"><button class="b bare" data-drawer="key-detail">编辑</button><button class="b bare" data-action="reset-quota">重置额度</button><button class="b bare" data-drawer="more-actions">更多…</button></td>
+        </tr>
+        <tr class="tenant-head" data-text="beta-labs"><td colspan="9" style="background:var(--c-surface-2);font-weight:var(--fw-semibold)">
+          <span class="nv-ic">▸</span> beta-labs · <span class="dim">key 1 把 · 预算占用 12% · 最近到期 2027-03-01</span></td></tr>
+        <tr data-ustate="active" data-text="beta-labs 生产 5d1f88c2">
+          <td>生产</td><td class="mono">5d1f88c2</td><td><span class="chip g"><span class="dot"></span>生效中</span></td><td><span class="chip tier-pro">pro</span></td><td class="num">6</td>
+          <td><span class="bar"><i class="b" style="width:12%"></i></span><span class="pcttxt">12%</span></td><td><span class="bar"><i class="b" style="width:12%"></i></span><span class="pcttxt">12%</span></td><td class="mono">2027-03-01</td>
+          <td class="act"><button class="b bare" data-drawer="key-detail">编辑</button><button class="b bare" data-action="reset-quota">重置额度</button><button class="b bare" data-drawer="more-actions">更多…</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">此页**刻意不自动刷新**，避免打字时被重置（沿用现有交互）。写操作错误分类：400/404/409 → 黄（输入/状态问题），5xx/网络 → 红（系统故障）。</div>
+</template>
+
+<!-- §3.B.3 密钥审批队列 #/approvals -->
+<template id="tpl-approvals">
+  <div class="crumb">经营 › <b>密钥审批队列</b></div>
+  <div class="page-head">
+    <div><h1>密钥审批队列</h1><div class="lead">申请 → 审批 → 签发，全流程留痕（进事件流）</div></div>
+    <div class="actions">
+      <button class="b" id="batch-approve" data-roles="owner">批量批准（已选 0）</button>
+      <button class="b" data-export="approvals">导出审批记录</button>
+    </div>
+  </div>
+  <div class="tabs" id="apv-tabs">
+    <button class="on" data-apv="pending">待处理 <span class="cnt">3</span></button>
+    <button data-apv="approved">已批准</button>
+    <button data-apv="rejected">已拒绝</button>
+    <button data-apv="all">全部</button>
+  </div>
+  <div class="block">
+    <table id="apv-table">
+      <thead><tr><th data-roles="owner,sre"><input type="checkbox" id="apv-all" aria-label="全选"></th><th>申请单号</th><th>客户</th><th>类型</th><th>目标套餐</th><th>期望模型</th><th>申请人</th><th>状态</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr data-apv="pending"><td data-roles="owner,sre"><input type="checkbox" class="apv-ck"></td><td class="mono">REQ-20261024-001</td><td class="mono">acme-corp</td><td>新 key</td><td>pro</td><td class="dim">6 个（pro 全部）</td><td>自助</td><td><span class="chip b">● 待处理</span></td><td class="act"><button class="b bare" data-drawer="apv-detail">审批</button></td></tr>
+        <tr data-apv="pending"><td data-roles="owner,sre"><input type="checkbox" class="apv-ck"></td><td class="mono">REQ-20261024-002</td><td class="mono">beta-labs</td><td>扩容</td><td>pro</td><td class="dim">不变</td><td>销售代提</td><td><span class="chip b">● 待处理</span></td><td class="act"><button class="b bare" data-drawer="apv-detail">审批</button></td></tr>
+        <tr data-apv="pending"><td data-roles="owner,sre"><input type="checkbox" class="apv-ck"></td><td class="mono">REQ-20261024-003</td><td class="mono">gamma-io</td><td>换套餐</td><td>standard</td><td class="dim">4 个</td><td>自助</td><td><span class="chip b">● 待处理</span></td><td class="act"><button class="b bare" data-drawer="apv-detail">审批</button></td></tr>
+        <tr data-apv="approved"><td data-roles="owner,sre"><input type="checkbox" class="apv-ck" disabled></td><td class="mono">REQ-20261023-011</td><td class="mono">acme-corp</td><td>轮换</td><td>standard</td><td class="dim">不变</td><td>自助</td><td><span class="chip g"><span class="dot"></span>已批准</span></td><td class="act"><button class="b bare" data-drawer="key-detail">查看</button></td></tr>
+        <tr data-apv="rejected"><td data-roles="owner,sre"><input type="checkbox" class="apv-ck" disabled></td><td class="mono">REQ-20261022-004</td><td class="mono">delta-net</td><td>新 key</td><td>pro</td><td class="dim">8 个</td><td>自助</td><td><span class="chip r">■ 已拒绝</span></td><td class="act"><button class="b bare" data-drawer="apv-detail">查看</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">批准即签发：明文 key 将**一次性**显示在抽屉中；关闭后不可再查看（忘了只能轮换）。拒绝必须填写理由。</div>
+</template>
+
+<!-- §3.B.5 路由策略配置 #/route -->
+<template id="tpl-route">
+  <div class="crumb">经营 › <b>路由策略配置</b></div>
+  <div class="page-head">
+    <div><h1>路由策略配置</h1><div class="lead">权重 / 优先级 / 成本 / 延迟 + 档位阶梯 + 熔断半开（含事故处置）</div></div>
+    <div class="actions">
+      <span class="pill-tabs" id="route-dim"><button class="on" data-dim="priority">优先级</button><button data-dim="cost">成本</button><button data-dim="weight">权重</button><button data-dim="latency">延迟</button></span>
+      <button class="b pri" data-roles="sre,owner">保存策略</button>
+    </div>
+  </div>
+  <div class="note" id="route-note">当前按 <b>优先级</b> 排序：priority 大者优先。切换维度仅改变**预览排序**，不直接改策略。</div>
+
+  <!-- 改进项4：成本路由自动化（映射改进方案 §3.2 REQ-04 / §4.1 第3项 / 行动#4） -->
+  <h2 class="sec">成本路由自动化 <span class="hint">无 <code class="k">cost</code> 配置时不再「静默」退化为优先级</span></h2>
+  <div class="note warn">模块：<b>成本路由自动化</b>（REQ-04）——现状「未配 cost 即静默退化为优先级路由」；改进后<b>必有可见信号</b>（route_reason / 面板计数 / trace 三处）。</div>
+  <div class="block">
+    <div class="f"><label>自动推断/回退</label><label style="display:flex;gap:8px;align-items:center;color:var(--c-fg)"><input type="checkbox" id="cost-auto" checked> 启用（缺失 cost 时给出可解释 route_reason）</label><span class="help">关闭则回退为纯 priority 路由并显式告警（不建议）</span></div>
+    <div class="f"><label>参考价目</label><span>内置参考价（可选数据文件） <span class="chip b">cost_source=reference</span> · 实测配置 <span class="chip g">cost_source=config</span></span></div>
+    <div class="f"><label>缺失 cost 模型</label><span><span class="chip y">▲ 1 个（agnes-2.5-pro）</span> 未参与数值成本比较，排到已配者之后（保守偏序）</span></div>
+    <table style="margin-top:var(--sp-3)">
+      <thead><tr><th>状态</th><th>route_reason</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>全配置</td><td class="mono">cost_configured</td><td>按成本升序选上游</td></tr>
+        <tr><td>部分缺失</td><td class="mono">cost_unknown_fallback_priority</td><td>已配者按成本、未配者排后（保守偏序）</td></tr>
+        <tr><td>全缺失</td><td class="mono">cost_unknown_fallback_priority</td><td>退化为优先级 + <b>显式提示</b>（不静默）</td></tr>
+        <tr><td>参考价命中</td><td class="mono">cost_reference_hit</td><td>使用参考价，标注 <span class="chip b">cost_source=reference</span></td></tr>
+      </tbody>
+    </table>
+    <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">缺失 cost 时<b>不改变</b>「同价承诺」与现有路由正确性；trace 可回答「为什么走这家」。（改进方案 §3.2 REQ-04 验收）</div>
+  </div>
+
+  <div id="route-list">
+    <div class="block" data-p="30" data-cost="3.0" data-weight="60" data-lat="1200">
+      <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+        <span class="nv-ic">⬡</span><b class="mono" style="min-width:120px">agnes 原厂</b>
+        <span class="chip g"><span class="dot"></span>健康</span>
+        <span class="dim">priority <b>30</b></span><span class="dim">cost ¥3.0/M</span><span class="dim">weight 60</span><span class="dim">p95 1.2s</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="ro" data-roles="sre,owner">
+          <button class="b bare" data-move="up" aria-label="上移">↑ 上移</button><button class="b bare" data-move="down" aria-label="下移">↓ 下移</button>
+          <button class="b bare" data-drawer="provider-detail">详情</button><button class="b bare" data-drawer="remove-provider">摘除</button>
+        </span>
+      </div>
+    </div>
+    <div class="block" data-p="20" data-cost="2.4" data-weight="30" data-lat="2800">
+      <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+        <span class="nv-ic">⬡</span><b class="mono" style="min-width:120px">聚合站</b>
+        <span class="chip y">▲ 降级</span>
+        <span class="dim">priority <b>20</b></span><span class="dim">cost ¥2.4/M</span><span class="dim">weight 30</span><span class="dim">p95 2.8s</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="ro" data-roles="sre,owner">
+          <button class="b bare" data-move="up" aria-label="上移">↑ 上移</button><button class="b bare" data-move="down" aria-label="下移">↓ 下移</button>
+          <button class="b bare" data-drawer="provider-detail">详情</button><button class="b bare" data-drawer="remove-provider">摘除</button>
+        </span>
+      </div>
+    </div>
+    <div class="block" data-p="10" data-cost="1.8" data-weight="10" data-lat="4100">
+      <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+        <span class="nv-ic">⬡</span><b class="mono" style="min-width:120px">备选 A</b>
+        <span class="chip r">■ 熔断</span>
+        <span class="dim">priority <b>10</b></span><span class="dim">cost ¥1.8/M</span><span class="dim">weight 10</span><span class="dim">p95 —</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="ro" data-roles="sre,owner">
+          <button class="b bare" data-move="up" aria-label="上移">↑ 上移</button><button class="b bare" data-move="down" aria-label="下移">↓ 下移</button>
+          <button class="b bare" data-drawer="provider-detail">详情</button><button class="b bare" data-drawer="clear-breaker">清熔断</button>
+        </span>
+      </div>
+    </div>
+    <div class="block" data-p="5" data-cost="2.2" data-weight="0" data-lat="—">
+      <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+        <span class="nv-ic">⬡</span><b class="mono" style="min-width:120px">备选 B</b>
+        <span class="chip n">○ 停用</span>
+        <span class="dim">priority 5 · 人工关闭</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="ro" data-roles="sre,owner"><button class="b bare" data-drawer="provider-detail">详情</button><button class="b bare">启用</button></span>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">档位阶梯（modelLadders）</h2>
+  <div class="block">
+    <div class="ladder" style="margin-bottom:var(--sp-2)"><b>旗舰</b> <span class="node">agnes-2.5-pro</span><span class="arrow">→</span><span class="node">agnes-3.0-flash</span><span class="arrow">→</span><span class="node">agnes-2.5-flash</span></div>
+    <div class="ladder"><b>旗舰-any</b> <span class="node">agnes…</span><span class="arrow">→</span><span class="node cross">落到 MiMo</span> <span class="dim">（跨厂商另起名字）</span></div>
+  </div>
+
+  <h2 class="sec">熔断参数</h2>
+  <div class="block">
+    <div class="f"><label>breakerThreshold</label><input type="number" value="5"><span class="help">连续失败达到该值触发熔断</span></div>
+    <div class="f"><label>breakerCooldownMs</label><input type="number" value="60000"><span class="help">冷却到期后**半开**试探一次</span></div>
+  </div>
+
+  <h2 class="sec">事故处置（三段式恢复）</h2>
+  <div class="three-stage">
+    <div class="stage"><div class="n">① 进行中</div><h4>同请求内 failover</h4><p>主用失败 → 同次请求降权并换兜底，客户仍拿 200。</p><span class="chip g">已自动</span></div>
+    <div class="stage on"><div class="n">② 已熔断</div><h4>阈值触发熔断</h4><p>连续失败到阈值 → 熔断该上游，不拿客户请求反复撞坏上游。</p><button class="b" data-roles="sre,owner" data-drawer="clear-breaker">清熔断</button></div>
+    <div class="stage"><div class="n">③ 恢复中</div><h4>半开试探</h4><p>冷却到期试探一次：成功清零切回主用；失败立即再熔断。</p><span class="chip" style="color:var(--c-upstream-halfopen);border-color:var(--c-tier-pro-border)">◆ 半开</span></div>
+  </div>
+</template>
+
+<!-- §3.B.4 计费与对账 #/billing -->
+<template id="tpl-billing">
+  <div class="crumb">经营 › <b>计费与对账</b></div>
+  <div class="page-head">
+    <div><h1>计费与对账</h1><div class="lead">¥ 人民币 · 不含税 ｜ 周期默认 30 天 ｜ 本轮不做发票（阶段1 Q8）</div></div>
+    <div class="actions">
+      <select style="width:auto"><option>2026-10-01 ~ 2026-10-30</option><option>2026-09</option></select>
+      <button class="b pri" data-export="billing">导出对账单 CSV</button>
+      <button class="b" data-export="billing" data-fmt="json">导出汇总 JSON</button>
+    </div>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="k">本周期应收</div><div class="v">¥4,208.00</div><div class="sub">对外报价（占位）</div></div>
+    <div class="card"><div class="k">预计实收</div><div class="v">¥3,960.00</div><div class="sub">含超预算截断</div></div>
+    <div class="card"><div class="k">超预算客户</div><div class="v danger">2</div><div class="sub">需通知/提额/停用</div></div>
+    <div class="card"><div class="k">综合毛利率</div><div class="v ok">25.7%</div><div class="sub">(牌面价 - 成本) / 牌面价</div></div>
+  </div>
+
+  <h2 class="sec">客户账单汇总</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>客户(tenantId)</th><th>套餐</th><th class="num">Token</th><th class="num">成本本</th><th class="num">牌面价</th><th class="num">毛利</th><th>预算</th><th>状态</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">acme-corp</td><td><span class="chip tier-std">standard</span></td><td class="num">1.28M</td><td class="num">¥7.42</td><td class="num">¥10.00</td><td class="num up">¥2.58</td><td><span class="bar"><i class="y" style="width:74%"></i></span>74%</td><td><span class="chip y">▲ 将耗尽</span></td><td class="act"><button class="b bare" data-drawer="bill-detail">对账</button><button class="b bare" data-action="notify">通知</button></td></tr>
+        <tr><td class="mono">beta-labs</td><td><span class="chip tier-pro">pro</span></td><td class="num">2.94M</td><td class="num">¥82.10</td><td class="num">¥120.00</td><td class="num up">¥37.90</td><td><span class="bar"><i class="b" style="width:12%"></i></span>12%</td><td><span class="chip g"><span class="dot"></span>正常</span></td><td class="act"><button class="b bare" data-drawer="bill-detail">对账</button><button class="b bare" data-action="notify">通知</button></td></tr>
+        <tr><td class="mono">gamma-io</td><td><span class="chip tier-std">standard</span></td><td class="num">0.62M</td><td class="num">¥3.10</td><td class="num">¥6.00</td><td class="num up">¥2.90</td><td><span class="bar"><i class="r" style="width:100%"></i></span>100%</td><td><span class="chip r">■ 已超预算</span></td><td class="act"><button class="b bare" data-drawer="bill-detail">对账</button><button class="b bare" data-action="notify">通知</button></td></tr>
+        <tr><td class="mono">delta-net</td><td><span class="chip tier-pro">pro</span></td><td class="num">1.10M</td><td class="num">¥—</td><td class="num">¥30.00</td><td class="num dim">—</td><td><span class="bar"><i class="b" style="width:40%"></i></span>40%</td><td><span class="chip n">○ cost 未配置</span></td><td class="act"><button class="b bare" data-drawer="bill-detail">对账</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2 class="sec">成本 / 毛利分布</h2>
+      <div class="block">
+        <div class="hbar"><span>beta-labs</span><span class="track"><i class="ok" style="width:70%"></i></span><span class="vl">¥37.90</span></div>
+        <div class="hbar"><span>acme-corp</span><span class="track"><i style="width:22%"></i></span><span class="vl">¥2.58</span></div>
+        <div class="hbar"><span>gamma-io</span><span class="track"><i style="width:8%"></i></span><span class="vl">¥2.90</span></div>
+      </div>
+    </div>
+    <div>
+      <h2 class="sec">超预算清单 <span class="hint">■ 需处置</span></h2>
+      <div class="block">
+        <table>
+          <thead><tr><th>客户</th><th class="num">超预算</th><th>建议动作</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">gamma-io</td><td class="num">100%</td><td><button class="b bare" data-action="notify">通知</button><button class="b bare" data-action="raise-quota">提额</button><button class="b bare" data-action="suspend">停用</button></td></tr>
+            <tr><td class="mono">acme-corp</td><td class="num">74%</td><td><button class="b bare" data-action="notify">通知续费</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 改进项2：客户级 WTCS 对账（我方运营/销售视图，映射改进方案 §5.4；WTCS 三段式见客户面 #/usage） -->
+  <h2 class="sec">客户级 WTCS 对账（销售视图） <span class="hint">计数 × 单价 = 金额 · 识别高价值客户 → 续费/提额</span></h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>客户</th><th class="num">WTCS(¥/周期)</th><th class="num">失败浪费</th><th class="num">缓存净省</th><th class="num">重试避免</th><th class="num">ADR</th><th class="act">建议</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">beta-labs</td><td class="num">¥12.40</td><td class="num">¥4.10</td><td class="num">¥6.20</td><td class="num">¥2.10</td><td class="num">91%</td><td class="act"><button class="b bare" data-action="notify">续费跟进</button></td></tr>
+        <tr><td class="mono">acme-corp</td><td class="num">¥3.13</td><td class="num">¥0.73</td><td class="num">¥1.44</td><td class="num">¥0.97</td><td class="num">86%</td><td class="act"><button class="b bare" data-action="notify">提额</button></td></tr>
+        <tr><td class="mono">gamma-io</td><td class="num">¥0.42</td><td class="num">¥0.30</td><td class="num">¥0.12</td><td class="num">¥0.00</td><td class="num">74%</td><td class="act"><button class="b bare" data-action="notify">补规则</button></td></tr>
+      </tbody>
+    </table>
+    <div class="note">护栏口径：<b>OH ≤ 0.1%（对外承诺）</b> · 工程熔断线 <b>3%</b>（ratio&gt;3% 自动降级） · PD=0 · A 类误拦=0 · <code class="k">relay_error</code>=0 · 单价未配置客户标「待补价」不计入合计。（改进方案 §2.4 口径拆分）</div>
+  </div>
+</template>
+
+<!-- §3.B.6 可观测看板 #/observ -->
+<template id="tpl-observ">
+  <div class="crumb">经营 › <b>可观测看板</b></div>
+  <div class="page-head">
+    <div><h1>可观测看板</h1><div class="lead">SLO / 告警 / 时间线 —— 比错误率更早发现"要出事"</div></div>
+    <div class="actions"><select style="width:auto"><option>1h</option><option selected>24h</option><option>7d</option></select><button class="b" data-export="observ">导出告警记录</button></div>
+  </div>
+
+  <h2 class="sec">SLO 概览 <span class="hint">阈值为示意（占位）</span></h2>
+  <div class="cards">
+    <div class="card"><div class="k">网关可用性</div><div class="v ok">99.96%</div><div class="sub">目标 ≥99.9% · 达标</div></div>
+    <div class="card"><div class="k">p95 延迟</div><div class="v warn">2.40s</div><div class="sub">目标 &lt;2s · 逼近</div></div>
+    <div class="card"><div class="k">归因投递率</div><div class="v ok">86.4%</div><div class="sub">目标 ≥80% · 达标</div></div>
+    <div class="card"><div class="k">预检降级放行</div><div class="v ok">0</div><div class="sub">应恒为 0（≠0 即 bug）</div></div>
+  </div>
+
+  <h2 class="sec">告警规则</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>规则</th><th>条件</th><th>当前</th><th>状态</th><th class="num">触发次数</th><th>动作</th></tr></thead>
+      <tbody>
+        <tr><td>上游错误率</td><td class="mono">&gt; 20%</td><td class="mono">0.38%</td><td><span class="chip g"><span class="dot"></span>ok</span></td><td class="num">1</td><td class="dim">通知渠道待接入（Q10）</td></tr>
+        <tr><td>p95 延迟</td><td class="mono">&gt; 2s</td><td class="mono">2.40s</td><td><span class="chip y">▲ warn</span></td><td class="num">3</td><td class="dim">通知渠道待接入</td></tr>
+        <tr><td>进程在途请求</td><td class="mono">&gt; 200</td><td class="mono">142</td><td><span class="chip g"><span class="dot"></span>ok</span></td><td class="num">0</td><td class="dim">—</td></tr>
+        <tr><td>上游停用+熔断数</td><td class="mono">&gt; 0</td><td class="mono">2</td><td><span class="chip r">■ danger</span></td><td class="num">1</td><td class="dim">通知渠道待接入</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two">
+    <div>
+      <h2 class="sec">事件时间线</h2>
+      <div class="block">
+        <div class="step"><span class="t">10:41:22</span><span class="st ok">info</span><span>key.rotate · acme-corp · a91c04ef</span></div>
+        <div class="step"><span class="t">10:12:04</span><span class="st fail">error</span><span>provider.toggle · 备选 A 已摘除（熔断）</span></div>
+        <div class="step"><span class="t">09:58:31</span><span class="st ok">info</span><span>loss-reduction.update · precheck=enforce</span></div>
+        <div class="step"><span class="t">09:12:00</span><span class="st fail">warn</span><span>upstream.degraded · 聚合站 p95 2.8s</span></div>
+      </div>
+    </div>
+    <div>
+      <h2 class="sec">指标趋势 <span class="hint">示意</span></h2>
+      <div class="block"><div class="skel" style="height:44px"></div><div class="skel w60" style="height:44px"></div><div class="dim" style="font-size:var(--fs-xs)">在途 / 并发 / 错误率 / 熔断数 折线占位</div></div>
+    </div>
+  </div>
+
+  <!-- 改进项7：可观测看板对接监控（Prometheus / node_exporter），映射改进方案 §3.2 REQ-12 -->
+  <h2 class="sec">监控对接 <span class="hint">Prometheus scrape · node_exporter 主机指标 · 进程指标 · 站点可用性</span></h2>
+  <div class="block">
+    <div class="kv">
+      <dt>指标导出</dt><dd class="mono">GET /metrics（Prometheus 文本格式，供 scrape）</dd>
+      <dt>主机指标</dt><dd>node_exporter（CPU / 内存 / 磁盘 / 网络）</dd>
+      <dt>进程指标</dt><dd>relay 进程（在途请求 / 上游并发 / 熔断数）</dd>
+      <dt>站点可用性</dt><dd>blackbox_exporter 探针（HTTP 200 + 延迟）</dd>
+    </div>
+    <table class="ratingmatrix" style="margin-top:var(--sp-3)">
+      <thead><tr><th>目标</th><th>采集器</th><th>端点/作业</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>网关业务指标</td><td class="mono">prometheus</td><td class="mono">job=relay-gateway /metrics</td><td><span class="chip g"><span class="dot"></span>已就绪</span></td></tr>
+        <tr><td>主机指标</td><td class="mono">node_exporter</td><td class="mono">job=node :9100</td><td><span class="chip y">▲ 待部署</span></td></tr>
+        <tr><td>站点可用性</td><td class="mono">blackbox_exporter</td><td class="mono">probe /admin /v1/quota</td><td><span class="chip y">▲ 待部署</span></td></tr>
+      </tbody>
+    </table>
+<pre>scrape_configs:
+  - job_name: relay-gateway
+    static_configs: [{ targets: ["127.0.0.1:8787"] }]
+  - job_name: node
+    static_configs: [{ targets: ["127.0.0.1:9100"] }]</pre>
+    <div class="dim" style="font-size:var(--fs-xs)">说明：为后续部署监控铺路（REQ-12 P2）；分布式指标需状态外置（见「实例与分布式」页）。</div>
+  </div>
+</template>
+
+<!-- §3.B.7 审计日志 #/audit -->
+<template id="tpl-audit">
+  <div class="crumb">系统 › <b>审计日志</b></div>
+  <div class="page-head">
+    <div><h1>审计日志</h1><div class="lead">事件可导出 · 留存策略可声明 · 红线可验证</div></div>
+    <div class="actions">
+      <button class="b pri" data-export="audit">导出审计事件 CSV</button>
+      <button class="b" data-export="audit" data-fmt="json">导出 JSON</button>
+      <button class="b" data-copy='curl -i https://api-relay.example.com/v1/chat/completions -H "x-relay-verify-nonce: 12345"'>复制核验命令</button>
+    </div>
+  </div>
+
+  <div class="note bad" data-roles="sre,finance,client">⛔ 403 示例（forbidden 态）：当前角色无权限导出/查看全部审计事件（RBAC §6.1）——切到 auditor / owner 可见完整导出。</div>
+  <h2 class="sec">合规声明</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>红线</th><th>含义</th><th>测试落点</th></tr></thead>
+      <tbody>
+        <tr><td>① 不改写成功响应</td><td>2xx / SSE 逐字节透传</td><td><span class="chip g">已钉住</span></td></tr>
+        <tr><td>② 错误只增不改</td><td>保留上游 message/code，归因只附加</td><td><span class="chip g">已钉住</span></td></tr>
+        <tr><td>③ fail-open 不可破</td><td>治理层异常静默回退（唯一 fail-closed 是鉴权）</td><td><span class="chip g">已钉住</span></td></tr>
+        <tr><td>④ 不落用户正文</td><td>默认不存 prompt/completion，指纹 HMAC 截断 16 字符</td><td><span class="chip g">已钉住</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note">事件留存：默认保留 <b>90 天</b>（声明式，占位）。导出 CSV 一律**仅指纹**，不含明文 key。</div>
+  </div>
+
+  <h2 class="sec">审计事件</h2>
+  <div class="block">
+    <div class="inline-form" style="margin-bottom:var(--sp-3)">
+      <input type="search" id="audit-search" placeholder="按类型 / actor / 目标搜索">
+      <select style="width:auto"><option>全部级别</option><option>info</option><option>warn</option><option>error</option></select>
+      <select style="width:auto"><option>近 24h</option><option>近 7d</option><option>近 90d</option></select>
+    </div>
+    <table id="audit-table">
+      <thead><tr><th>时间</th><th>类型</th><th>级别</th><th>actor</th><th>目标</th><th>结果</th></tr></thead>
+      <tbody>
+        <tr data-text="key.rotate acme-corp"><td class="mono">10-24 10:41</td><td class="mono">key.rotate</td><td><span class="chip b">info</span></td><td>owner</td><td class="mono">a91c04ef</td><td><span class="chip g"><span class="dot"></span>ok</span></td></tr>
+        <tr data-text="provider.toggle 备选A"><td class="mono">10-24 10:12</td><td class="mono">provider.toggle</td><td><span class="chip r">error</span></td><td>sre</td><td class="mono">备选 A</td><td><span class="chip g"><span class="dot"></span>ok</span></td></tr>
+        <tr data-text="loss-reduction.update precheck"><td class="mono">10-24 09:58</td><td class="mono">loss-reduction.update</td><td><span class="chip b">info</span></td><td>owner</td><td class="mono">config</td><td><span class="chip g"><span class="dot"></span>ok</span></td></tr>
+        <tr data-text="auth.rejected 7b3e19aa"><td class="mono">10-24 09:30</td><td class="mono">auth.rejected</td><td><span class="chip y">warn</span></td><td>system</td><td class="mono">7b3e19aa</td><td><span class="chip r">■ 已拒</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec">被拒 key 台账 <span class="hint">仅指纹/形态/长度，永不记明文</span></h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>指纹</th><th class="num">次数</th><th>最后时间</th><th>提交形态</th><th>命中已签发</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">7b3e19aa</td><td class="num">128</td><td class="mono">10-24 09:30</td><td>Bearer</td><td><span class="chip y">▲ 已签发但被禁用</span></td></tr>
+        <tr><td class="mono">ff00aa11</td><td class="num">64</td><td class="mono">10-24 08:12</td><td>裸 key</td><td><span class="chip n">○ 非本网关签发</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<!-- 改进项3：#/tenants 租户管理（多租户强隔离 + RBAC；映射改进方案 §3.2 REQ-07 / §4.1 第5项） -->
+<template id="tpl-tenants">
+  <div class="crumb">经营 › <b>租户管理</b></div>
+  <div class="page-head">
+    <div><h1>租户管理</h1><div class="lead">多租户逻辑强隔离（tenantId 谓词）+ RBAC 五角色</div></div>
+    <div class="actions"><button class="b pri" data-drawer="tenant-new">新建租户</button><button class="b" data-export="tenants">导出 CSV</button></div>
+  </div>
+
+  <div class="note warn"><b>隔离级别声明</b>：本轮为「<b>单实例逻辑隔离</b>」——任何客户面 API 只能在自身 <code class="k">tenantId</code> 内读写，越权返回 <b>403</b> 且不泄漏他租户存在性（REQ-07）。<b>不做物理隔离</b>（每租户独立进程/库）——属产品边界（改进方案 §1.2 非目标）。</div>
+
+  <h2 class="sec">租户列表</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>tenantId</th><th>名称</th><th>隔离级别</th><th class="num">key 数</th><th>套餐</th><th>预算占用</th><th>状态</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr class="tenant-head" data-text="acme-corp"><td class="mono">acme-corp</td><td>Acme 科技</td><td><span class="chip b">● 逻辑强隔离</span></td><td class="num">2</td><td><span class="chip tier-std">standard</span></td><td><span class="bar"><i class="y" style="width:78%"></i></span><span class="pcttxt">78%</span></td><td><span class="chip g"><span class="dot"></span>正常</span></td><td class="act"><button class="b bare" data-drawer="tenant-detail">详情</button></td></tr>
+        <tr data-text="beta-labs"><td class="mono">beta-labs</td><td>Beta 实验室</td><td><span class="chip b">● 逻辑强隔离</span></td><td class="num">1</td><td><span class="chip tier-pro">pro</span></td><td><span class="bar"><i class="b" style="width:12%"></i></span><span class="pcttxt">12%</span></td><td><span class="chip g"><span class="dot"></span>正常</span></td><td class="act"><button class="b bare" data-drawer="tenant-detail">详情</button></td></tr>
+        <tr data-text="gamma-io"><td class="mono">gamma-io</td><td>Gamma IO</td><td><span class="chip b">● 逻辑强隔离</span></td><td class="num">1</td><td><span class="chip tier-std">standard</span></td><td><span class="bar"><i class="r" style="width:100%"></i></span><span class="pcttxt">100%</span></td><td><span class="chip r">■ 超预算</span></td><td class="act"><button class="b bare" data-drawer="tenant-detail">详情</button></td></tr>
+        <tr data-text="delta-net"><td class="mono">delta-net</td><td>Delta 网络</td><td><span class="chip n">○ 默认租户（待迁移）</span></td><td class="num">1</td><td><span class="chip tier-pro">pro</span></td><td><span class="bar"><i class="b" style="width:40%"></i></span><span class="pcttxt">40%</span></td><td><span class="chip y">▲ 待补价</span></td><td class="act"><button class="b bare" data-drawer="tenant-detail">详情</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec">RBAC 角色 × 能力矩阵 <span class="hint">五角色：管理员 / 运维 / 财务 / 审计 / 客户开发者</span></h2>
+  <div class="block">
+    <table class="ratingmatrix">
+      <thead><tr><th>能力</th><th class="c">管理员<br>owner</th><th class="c">运维<br>sre</th><th class="c">财务<br>finance</th><th class="c">审计<br>auditor</th><th class="c">客户开发者<br>client</th></tr></thead>
+      <tbody>
+        <tr><td>签发/轮换/停用 key</td><td class="c">●</td><td class="c">●</td><td class="c">○</td><td class="c">○</td><td class="c">◐ 仅申请</td></tr>
+        <tr><td>审批申请单</td><td class="c">●</td><td class="c">◐ 初审</td><td class="c">○</td><td class="c">○</td><td class="c">○</td></tr>
+        <tr><td>跨租户读取</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td class="c">◐ 只读</td><td class="c">○ 仅自身</td></tr>
+        <tr><td>改套餐/预算</td><td class="c">●</td><td class="c">◐ 受限</td><td class="c">○</td><td class="c">○</td><td class="c">○</td></tr>
+        <tr><td>导出审计事件</td><td class="c">●</td><td class="c">○</td><td class="c">○</td><td class="c">●</td><td class="c">○</td></tr>
+        <tr><td>自检 key（whoami）</td><td class="c">●</td><td class="c">●</td><td class="c">○</td><td class="c">○</td><td class="c">● 自助</td></tr>
+      </tbody>
+    </table>
+    <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">图例：● 允许 · ◐ 受限/只读 · ○ 不允许。（对齐 03 §6.1 与改进方案 §3.2 REQ-07）</div>
+  </div>
+</template>
+
+<!-- 改进项5：#/instances 实例与分布式状态（映射改进方案 §3.2 REQ-01/02/09/12、§3.3） -->
+<template id="tpl-instances">
+  <div class="crumb">系统 › <b>实例与分布式</b></div>
+  <div class="page-head">
+    <div><h1>实例与分布式状态</h1><div class="lead">多实例下限流 / 配额 / 熔断 / key 池语义一致性（A4 短板修复视图）</div></div>
+    <div class="actions"><button class="b" data-action="refresh-instances">刷新实例</button><button class="b" data-drawer="state-external">状态外置详情</button></div>
+  </div>
+
+  <div class="note ok"><b>状态外置指示</b>：<span class="chip g"><span class="dot"></span>REDIS 已连接</span> — 限流/配额/熔断/key 池状态已外置到共享 Redis；故障时 <b>fail-open</b> 放行并记降级事件（红线 3）。<span class="dim">storage.driver=sqlite（控制面），state.backend=redis（数据面）</span></div>
+
+  <div class="cards">
+    <div class="card"><div class="k">在线实例</div><div class="v">3</div><div class="sub">1 leader · 2 worker</div></div>
+    <div class="card"><div class="k">Redis 健康</div><div class="v ok">OK</div><div class="sub">连接 0.4ms · 内存 42MB</div></div>
+    <div class="card"><div class="k">限流一致性</div><div class="v ok">一致</div><div class="sub">rpm 跨实例共享 · 429 不超发</div></div>
+    <div class="card"><div class="k">降级事件</div><div class="v warn">0</div><div class="sub">redis_unavailable=0（应恒为 0）</div></div>
+  </div>
+
+  <h2 class="sec">实例列表</h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>instanceId</th><th>角色</th><th>版本</th><th class="num">在途</th><th class="num">rpm 占用</th><th>启动时间</th><th>心跳</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">gw-1</td><td><span class="chip b">leader</span></td><td class="mono">v1.0.0</td><td class="num">42</td><td class="num">318/1200</td><td class="mono">10-24 08:00</td><td class="mono">2s 前</td><td><span class="chip g"><span class="dot"></span>健康</span></td></tr>
+        <tr><td class="mono">gw-2</td><td></td><td class="mono">v1.0.0</td><td class="num">31</td><td class="num">296/1200</td><td class="mono">10-24 08:00</td><td class="mono">3s 前</td><td><span class="chip g"><span class="dot"></span>健康</span></td></tr>
+        <tr><td class="mono">gw-3</td><td></td><td class="mono">v1.0.0</td><td class="num">18</td><td class="num">240/1200</td><td class="mono">10-24 08:01</td><td class="mono">2s 前</td><td><span class="chip g"><span class="dot"></span>健康</span></td></tr>
+        <tr><td class="mono">gw-4</td><td></td><td class="mono">v0.9.x</td><td class="num">0</td><td class="num">—</td><td class="mono">10-24 07:40</td><td class="mono">—</td><td><span class="chip n">○ 已排空（滚动升级）</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="sec">一致性状态 <span class="hint">单实例语义 vs 多实例外置</span></h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>能力</th><th>单实例语义</th><th>多实例（外置后）</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>限流（rpm）</td><td>实例内计数</td><td class="mono">Redis INCR / 原子计数</td><td><span class="chip g"><span class="dot"></span>一致</span></td></tr>
+        <tr><td>配额（token / 预算¥）</td><td>实例内快照</td><td class="mono">Redis 原子扣减 · 不为负</td><td><span class="chip g"><span class="dot"></span>一致</span></td></tr>
+        <tr><td>熔断 / 半开</td><td>实例内计数</td><td class="mono">全局令牌化半开（仅 1 次试探）</td><td><span class="chip g"><span class="dot"></span>一致</span></td></tr>
+        <tr><td>key 池轮换/冷却</td><td>实例内游标</td><td class="mono">共享游标 · 冷却/报废共享</td><td><span class="chip y">▲ 部分（REQ-09 P1）</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn"><b>回滚方案</b>：状态外置可分阶段启用（<code class="k">state.backend=memory→redis</code>），旧 key 哈希可直接迁移（ADR-018）；Redis 不可用时自动降级为实例内判定（fail-open），<b>不因状态层故障拒绝请求</b>。</div>
+</template>
+
+<!-- ============================================================ 保留页（令牌迁移，简版） -->
+<template id="tpl-met">
+  <div class="crumb">值守 › <b>指标</b></div>
+  <div class="page-head"><div><h1>指标</h1><div class="lead">原始读数：计数器 + n/avg/min/max 分布 + 派生比率（保留页 · 令牌迁移）</div></div></div>
+  <div class="block">
+    <table>
+      <thead><tr><th>计数器</th><th class="num">值</th><th class="num">n</th><th class="num">avg</th><th class="num">min</th><th class="num">max</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">precheck.total</td><td class="num">12,480</td><td class="num">12,480</td><td class="num">0.4ms</td><td class="num">0.1ms</td><td class="num">3.2ms</td></tr>
+        <tr><td class="mono">precheck.degraded</td><td class="num">0</td><td class="num">0</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td class="mono">attribution.delivered</td><td class="num">10,780</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- 改进项8：口径拆分 —— 对外承诺 0.1% vs 工程熔断线 3%（映射改进方案 §2.4、§6 待确认①） -->
+  <h2 class="sec">开销占比口径拆分 <span class="hint">消除「0.1% vs 3%」口径冲突</span></h2>
+  <div class="block">
+    <table>
+      <thead><tr><th>口径</th><th>阈值</th><th>性质</th><th>触发行为</th></tr></thead>
+      <tbody>
+        <tr><td>对外公开承诺（目标线）</td><td class="mono">OH ≤ 0.1%（千分之一）</td><td><span class="chip g">● 承诺</span></td><td>对客户公示；报表并列展示</td></tr>
+        <tr><td>工程自动降级熔断线（护栏）</td><td class="mono">OH &gt; 3% 或 precheck p99 &gt; 2ms</td><td><span class="chip r">■ 护栏</span></td><td>自动降级为 observe/off</td></tr>
+      </tbody>
+    </table>
+    <div class="note">二者<b>不矛盾</b>：<b>0.1% 是对外承诺（目标线）</b>，<b>3% 是工程自动降级熔断线（护栏）</b>。当前值 <span class="chip g">OH=0.6‰</span> · <span class="chip g">precheck p99=1.4ms</span>（均达标）。</div>
+  </div>
+  <div class="note">预检降级放行应恒为 0；不为 0 说明治理层在 fail-open，是 bug 信号（如实显露，不谎报正常）。</div>
+</template>
+
+<template id="tpl-ledger">
+  <div class="crumb">值守 › <b>请求账本</b></div>
+  <div class="page-head"><div><h1>请求账本</h1><div class="lead">一次请求卡在哪一步（保留页 · 令牌迁移）</div></div><div class="actions"><button class="b" data-export="ledger">导出 CSV</button></div></div>
+  <div class="block">
+    <table>
+      <thead><tr><th>时间</th><th>结果</th><th>模型</th><th class="num">耗时</th><th>trace</th></tr></thead>
+      <tbody>
+        <tr class="click"><td class="mono">10:41:22<button class="row-act" data-drawer="trace-detail" aria-label="打开请求轨迹 tr_88fa"></button></td><td><span class="chip g"><span class="dot"></span>ok</span></td><td class="mono">mimo-v2.5-pro</td><td class="num">1.2s</td><td class="mono">tr_88fa</td></tr>
+        <tr class="click"><td class="mono">10:38:51<button class="row-act" data-drawer="trace-detail" aria-label="打开请求轨迹 tr_91c2"></button></td><td><span class="chip y">▲ upstream_error</span></td><td class="mono">旗舰</td><td class="num">1.0s</td><td class="mono">tr_91c2</td></tr>
+        <tr class="click"><td class="mono">10:35:10<button class="row-act" data-drawer="trace-stream" aria-label="打开流式中断轨迹 tr_st1"></button></td><td><span class="chip y">▲ stream_interrupted</span></td><td class="mono">旗舰(SSE)</td><td class="num">3.4s</td><td class="mono">tr_st1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- 改进项6：流式 SSE error 帧可视化（映射改进方案 §3.2 REQ-03 / §4.1 第1项） -->
+  <div class="note">流式请求若在<b>已开始回传后</b>发生 mid-stream 错误，网关注入符合 OpenAI 流式约定的 <code class="k">error</code> 帧回传客户端（不再「静默截断」）；<b>free 层纯管道不注入</b>，正常结束路径<b>逐字节一致</b>。点开 tr_st1 查看注入步骤时间线。</div>
+</template>
+
+<template id="tpl-diag">
+  <div class="crumb">值守 › <b>排障</b></div>
+  <div class="page-head"><div><h1>排障</h1><div class="lead">鉴权失败指纹台账 + 失败归因目录（保留页 · 令牌迁移）</div></div></div>
+  <!-- 改进项1：归因契约对外公开（映射改进方案 §1.2 差异化机会 / §4.1 第2项 / 行动#1；采纳 OpenRouter error_type 词表） -->
+  <h2 class="sec">失败归因契约（对外公开） <span class="hint">failure_reason × quick_action × error_type —— 对外稳定契约，可程序化分支</span></h2>
+  <div class="note">本词表是<b>对外稳定契约</b>：客户端据此程序化分支；归因<b>只作附加字段/响应头</b>，<b>绝不改写上游原文</b>（保留 <code class="k">message</code>/<code class="k">code</code>）。同时采纳 <b>OpenRouter 的 <code class="k">error.metadata.error_type</code> 词表（不自创）</b>，并实现 <b><code class="k">200 + body 内 error + finish_reason:"error"</code></b> 的中途失败表达（对齐改进方案 §1.6）。 <button class="b bare" data-copy-sel="#attribution-contract">复制词表</button></div>
+  <div class="block">
+    <table>
+      <thead><tr><th>failure_reason</th><th>quick_action</th><th>error_type（OpenRouter 口径）</th><th class="num">HTTP</th><th>可重试</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">auth_invalid</td><td class="mono">check_key</td><td class="mono">unmapped</td><td class="num">401</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">permission_denied</td><td class="mono">switch_model</td><td class="mono">unmapped</td><td class="num">403</td><td><span class="chip y">▲ 换模型</span></td></tr>
+        <tr><td class="mono">model_not_allowed</td><td class="mono">enable_model</td><td class="mono">unmapped</td><td class="num">403</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">model_not_found</td><td class="mono">fix_model_name</td><td class="mono">unmapped</td><td class="num">404</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">invalid_request</td><td class="mono">fix_request</td><td class="mono">unmapped</td><td class="num">400</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">context_length_exceeded</td><td class="mono">shorten_input</td><td class="mono">context_length_exceeded</td><td class="num">400</td><td><span class="chip y">▲ 需改</span></td></tr>
+        <tr><td class="mono">content_filter</td><td class="mono">rewrite_input</td><td class="mono">content_policy_violation</td><td class="num">200/400</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">refusal</td><td class="mono">rewrite_input</td><td class="mono">refusal</td><td class="num">200</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">rate_limited</td><td class="mono">retry_with_backoff</td><td class="mono">rate_limit_exceeded</td><td class="num">429</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">overloaded</td><td class="mono">retry_with_backoff</td><td class="mono">provider_overloaded</td><td class="num">503</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">quota_exhausted</td><td class="mono">top_up_balance</td><td class="mono">unmapped</td><td class="num">402</td><td><span class="chip r">■ 否</span></td></tr>
+        <tr><td class="mono">timeout</td><td class="mono">retry_with_backoff</td><td class="mono">unmapped</td><td class="num">504</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">network_error</td><td class="mono">retry_with_backoff</td><td class="mono">unmapped</td><td class="num">502</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">stream_interrupted</td><td class="mono">retry_with_backoff</td><td class="mono">provider_unavailable</td><td class="num">200</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">upstream_error</td><td class="mono">retry_or_failover</td><td class="mono">provider_unavailable</td><td class="num">502/503</td><td><span class="chip g">● 是</span></td></tr>
+        <tr><td class="mono">relay_error</td><td class="mono">contact_support</td><td class="mono">unmapped</td><td class="num">5xx</td><td><span class="chip r">■ 否</span></td></tr>
+      </tbody>
+    </table>
+    <div class="dim" style="font-size:var(--fs-xs);margin-top:var(--sp-2)">15 类 failure_reason × 11 种 quick_action（check_key / enable_model / fix_model_name / retry_with_backoff / top_up_balance / switch_model / retry_or_failover / shorten_input / rewrite_input / fix_request / contact_support）。</div>
+  </div>
+  <details class="faq"><summary>展开可复制词表（JSON · 契约版本 api-relay.attribution.v1）</summary>
+<pre id="attribution-contract">{"contract":"api-relay.attribution.v1","error_type_vocab":"openrouter-compatible","error_types":["context_length_exceeded","rate_limit_exceeded","provider_overloaded","provider_unavailable","content_policy_violation","refusal","unmapped"],"items":[{"failure_reason":"auth_invalid","quick_action":"check_key","error_type":"unmapped","http":401,"recoverable":false},{"failure_reason":"permission_denied","quick_action":"switch_model","error_type":"unmapped","http":403,"recoverable":true},{"failure_reason":"model_not_allowed","quick_action":"enable_model","error_type":"unmapped","http":403,"recoverable":false},{"failure_reason":"model_not_found","quick_action":"fix_model_name","error_type":"unmapped","http":404,"recoverable":false},{"failure_reason":"invalid_request","quick_action":"fix_request","error_type":"unmapped","http":400,"recoverable":false},{"failure_reason":"context_length_exceeded","quick_action":"shorten_input","error_type":"context_length_exceeded","http":400,"recoverable":false},{"failure_reason":"content_filter","quick_action":"rewrite_input","error_type":"content_policy_violation","http":200,"recoverable":false},{"failure_reason":"refusal","quick_action":"rewrite_input","error_type":"refusal","http":200,"recoverable":false},{"failure_reason":"rate_limited","quick_action":"retry_with_backoff","error_type":"rate_limit_exceeded","http":429,"recoverable":true},{"failure_reason":"overloaded","quick_action":"retry_with_backoff","error_type":"provider_overloaded","http":503,"recoverable":true},{"failure_reason":"quota_exhausted","quick_action":"top_up_balance","error_type":"unmapped","http":402,"recoverable":false},{"failure_reason":"timeout","quick_action":"retry_with_backoff","error_type":"unmapped","http":504,"recoverable":true},{"failure_reason":"network_error","quick_action":"retry_with_backoff","error_type":"unmapped","http":502,"recoverable":true},{"failure_reason":"stream_interrupted","quick_action":"retry_with_backoff","error_type":"provider_unavailable","http":200,"recoverable":true},{"failure_reason":"upstream_error","quick_action":"retry_or_failover","error_type":"provider_unavailable","http":503,"recoverable":true},{"failure_reason":"relay_error","quick_action":"contact_support","error_type":"unmapped","http":500,"recoverable":false}]}</pre>
+  </details>
+  <div class="note">分区降级：任一子块失败不整页白屏。锚点联动 <code class="k">#/diag/cheat-reason</code> 保留。</div>
+  <details class="faq" id="cheat-reason"><summary>常见归因速查（锚点 id=cheat-reason）</summary>
+    <p class="dim" style="font-size:var(--fs-xs);margin:0 0 var(--sp-2)">口径与总览横幅、账本抽屉<b>同源</b>（REASON_HINT）：先判断"是客户端还是上游/网关的锅"，再照"去哪修"操作。</p>
+    <table>
+      <thead><tr><th>现象</th><th>failure_reason</th><th>谁的锅</th><th>去哪修</th></tr></thead>
+      <tbody>
+        <tr><td>调用被拒</td><td class="mono">auth_invalid</td><td>客户端</td><td>去「我的密钥」自检 / 换 key</td></tr>
+        <tr><td>预算用完</td><td class="mono">quota_exhausted</td><td>客户端</td><td>升级套餐（402，<b>别重试</b>）</td></tr>
+        <tr><td>模型不可用</td><td class="mono">model_not_found</td><td>客户端</td><td>核对模型名（附拼写建议）</td></tr>
+        <tr><td>太频繁</td><td class="mono">rate_limited</td><td>上游</td><td>按 <code class="k">retryAfterMs</code> 退避（自动重试已封装）</td></tr>
+        <tr><td>上游故障</td><td class="mono">upstream_error</td><td>网关侧</td><td>已自动兜底，客户端无需改</td></tr>
+      </tbody>
+    </table>
+  </details>
+</template>
+
+<template id="tpl-ch">
+  <div class="crumb">经营 › <b>上游</b></div>
+  <div class="page-head"><div><h1>上游</h1><div class="lead">渠道健康/熔断/key 池/模型可达性（保留页 · 令牌迁移）</div></div><div class="actions"><button class="b" data-goto="route">前往路由策略</button></div></div>
+  <div class="block">
+    <table>
+      <thead><tr><th>上游</th><th>状态</th><th class="num">并发</th><th class="num">p95</th><th class="num">失败率</th><th>Key 池</th><th class="act">操作</th></tr></thead>
+      <tbody>
+        <tr><td>agnes 原厂</td><td><span class="chip g"><span class="dot"></span>健康</span></td><td class="num">42</td><td class="num">1.2s</td><td class="num">0.2%</td><td>3/4 可用</td><td class="act"><button class="b bare" data-action="detach-provider">摘除</button></td></tr>
+        <tr><td>聚合站</td><td><span class="chip y">▲ 降级</span></td><td class="num">31</td><td class="num">2.8s</td><td class="num">2.6%</td><td>2/2 可用</td><td class="act"><button class="b bare" data-action="detach-provider">摘除</button></td></tr>
+        <tr><td>备选 A</td><td><span class="chip r">■ 熔断</span></td><td class="num">0</td><td class="num">—</td><td class="num">18%</td><td>1/2 冷却</td><td class="act"><button class="b bare" data-action="clear-breaker">清熔断</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<template id="tpl-ops">
+  <div class="crumb">系统 › <b>运维</b></div>
+  <div class="page-head"><div><h1>运维</h1><div class="lead">生效配置 + 降损层开关（保留页 · 内部工程能力折叠到"高级"）</div></div></div>
+  <div class="block">
+    <div class="f"><label>precheck</label><select><option>off</option><option selected>observe</option><option>enforce</option></select><span class="help">改动热生效 / 部分需重启</span></div>
+    <div class="f"><label>attribution</label><select><option selected>header</option><option>full</option><option>off</option></select></div>
+    <div class="f"><label>自动重试次数</label><input type="number" value="1"></div>
+  </div>
+  <details class="faq" style="margin-top:var(--sp-3)"><summary>高级（内部工程能力，客户面不出现）</summary><p>hermes 聚合站嵌入、进化方向设置、文本报告等——阶段3 建议折叠，且 `probeHermes` 硬编码抽为配置。</p></details>
+</template>
+
+<template id="tpl-trust">
+  <div class="crumb">系统 › <b>信任</b></div>
+  <div class="page-head"><div><h1>信任</h1><div class="lead">四条设计红线 + 测试落点 + 自助核对命令（保留页 · 可作为客户面文档素材）</div></div></div>
+  <div class="block">
+    <div class="kv">
+      <dt>A1</dt><dd>零改写：成功响应逐字节透传</dd>
+      <dt>A2</dt><dd>错误只增不改：保留上游 message/code</dd>
+      <dt>A3</dt><dd>fail-open：治理层异常静默回退</dd>
+      <dt>A4</dt><dd>不落正文：默认不存 prompt/completion</dd>
+    </div>
+    <button class="b" style="margin-top:var(--sp-3)" data-copy='curl -i ... -H "x-relay-verify-nonce: 12345"'>复制核对命令</button>
+  </div>
+</template>
+
+<template id="tpl-agent">
+  <div class="crumb">系统 › <b>知识库 / Agent</b></div>
+  <div class="page-head"><div><h1>知识库 / Agent</h1><div class="lead">内部运营支撑 · <b>非对外平台卖点</b>（阶段1 Q11：客户面不出现）</div></div></div>
+  <div class="note">此页标注为"内部支撑"。平台刻意不做 Agent 编排能力（阶段1 §5.2 硬边界），故不进入客户面。</div>
+</template>
+
+<!-- ============================================================ 交互脚本（路由/导航/抽屉/主题/角色/导出/自检） -->
+<script>
+(function(){
+  "use strict";
+  var root=document.documentElement, view=document.getElementById('view'),
+      sidenav=document.getElementById('sidenav'), drawer=document.getElementById('drawer'),
+      drawerBody=document.getElementById('drawer-body'), drawerFoot=document.getElementById('drawer-foot'),
+      drawerTitle=document.getElementById('drawer-title'), scrim=document.getElementById('scrim'),
+      navscrim=document.getElementById('navscrim'), toastHost=document.getElementById('toast');
+
+  /* ---------- 导航定义（02 §6.2 四组；客户面独立） ---------- */
+  /* 新顺序（值守→经营→客户→系统，阶段2 §6.2 重排） */
+  var NAV_ADMIN=[
+    {label:'值守',items:[['ov','总览','▦'],['met','指标','∿'],['ledger','请求账本','☰'],['diag','排障','⚑']]},
+    {label:'经营',items:[['users','客户与租户','◇'],['tenants','租户管理','▣'],['approvals','密钥审批','⧗'],['plans','套餐目录','▤'],['route','路由策略','⇄'],['ch','上游','⬡'],['billing','计费与对账','¥'],['observ','可观测','◉']]},
+    {label:'客户',items:[['__portal__','客户门户预览','▷']]},
+    {label:'系统',items:[['instances','实例与分布式','⛁'],['ops','运维','⚙'],['trust','信任','⚖'],['audit','审计日志','✓'],['agent','知识库 / Agent','◈']]}
+  ];
+  /* 旧顺序（监控→配置→智能→系统，保留给习惯旧肌肉记忆的用户；P1-4 / AC-05） */
+  var NAV_ADMIN_OLD=[
+    {label:'监控',items:[['ov','总览','▦'],['met','指标','∿'],['ledger','请求账本','☰'],['diag','排障','⚑']]},
+    {label:'配置',items:[['users','客户与租户','◇'],['tenants','租户管理','▣'],['approvals','密钥审批','⧗'],['plans','套餐目录','▤'],['route','路由策略','⇄'],['ch','上游','⬡'],['billing','计费与对账','¥'],['observ','可观测','◉']]},
+    {label:'智能',items:[['agent','知识库 / Agent','◈']]},
+    {label:'系统',items:[['instances','实例与分布式','⛁'],['ops','运维','⚙'],['trust','信任','⚖'],['audit','审计日志','✓']]}
+  ];
+  var navOldOrder=(function(){ try{ return localStorage.getItem('proto_nav_old')==='1'; }catch(_){ return false; } })();
+  var NAV_CLIENT=[
+    {label:'我的',items:[['portal','控制台概览','▦'],['keys','我的密钥','⚑'],['usage','用量与账单','¥']]},
+    {label:'资源',items:[['plans','套餐目录','▤'],['docs','API 文档','☰'],['status','状态页','◉']]}
+  ];
+  var ADMIN_ROLES=['owner','sre','finance','auditor'];
+  var CLIENT_TABS=['portal','keys','usage','plans','docs','status'];
+
+  var ROUTE_TITLES={ov:'总览',met:'指标',ledger:'请求账本',diag:'排障',users:'客户与租户',tenants:'租户管理',approvals:'密钥审批',plans:'套餐目录',route:'路由策略',ch:'上游',billing:'计费与对账',observ:'可观测看板',instances:'实例与分布式',ops:'运维',trust:'信任',audit:'审计日志',agent:'知识库 / Agent',portal:'控制台概览',keys:'我的密钥',usage:'用量与账单',docs:'API 文档',status:'状态页'};
+
+  /* ---------- Toast（02 §5.8） ---------- */
+  function toast(text,tone){
+    var d=document.createElement('div'); if(tone) d.className=tone; d.textContent=text;
+    if(tone==='r'){ d.setAttribute('role','alert'); d.setAttribute('aria-live','assertive'); } /* P2-2：错误用 assertive */
+    toastHost.appendChild(d);
+    setTimeout(function(){ d.remove(); }, tone==='r'?9000:4200);
+  }
+
+  /* P1-2 修复：统一动作反馈（死交互 → Toast / 抽屉） */
+  var ACTION_MSG={
+    'enable-key':['已启用该密钥（原型示意）','g'],
+    'reset-quota':['额度已重置（原型示意）','g'],
+    'detach-provider':['已摘除上游，流量立即切兜底（原型示意）','y'],
+    'clear-breaker':['已清熔断并试探（原型示意）','g'],
+    'notify':['已通知客户（原型示意，通知渠道待接入）','g'],
+    'raise-quota':['已为该客户提额（原型示意）','g'],
+    'suspend':['已停用该客户（原型示意，不可逆）','y'],
+    'refresh-instances':['实例列表已刷新（3 在线 · 1 已排空）','g']
+  };
+  function doAction(a){
+    if(a==='plan-manage'){ openDrawer('plan-manage'); return; }
+    var m=ACTION_MSG[a];
+    if(m){ toast(m[0],m[1]); } else { toast('已执行：'+a+'（原型示意）','g'); }
+  }
+
+  /* ---------- 角色 / 密度 / 主题 ---------- */
+  var role=root.dataset.role||'owner';
+  function densityForRole(r){ return r==='client'?'cozy':'compact'; }
+  function setRole(r){
+    role=r; root.dataset.role=r;
+    root.dataset.density=densityForRole(r);
+    var sel=document.getElementById('role-select'); if(sel) sel.value=r;
+    renderNav();
+    var ok=(r==='client')?CLIENT_TABS.indexOf(currentTab)>=0:(ADMIN_ROLES.indexOf(r)>=0);
+    if(!ok){ goto(r==='client'?'portal':'ov'); } else { render(); }
+  }
+  document.getElementById('role-select').addEventListener('change',function(e){ setRole(e.target.value); });
+  document.getElementById('theme-btn').addEventListener('click',function(){
+    var t=root.dataset.theme==='light'?'dark':'light'; root.dataset.theme=t;
+    try{ localStorage.setItem('proto_theme',t);}catch(_){}
+    toast('已切换'+(t==='light'?'亮色':'暗色')+'主题','g');
+  });
+  document.getElementById('density-btn').addEventListener('click',function(){
+    var d=root.dataset.density==='cozy'?'compact':'cozy'; root.dataset.density=d;
+    toast('密度：'+(d==='cozy'?'舒适 cozy':'紧凑 compact'),'g');
+  });
+  document.getElementById('refresh-btn').addEventListener('click',function(){ fresh(); toast('已刷新（数据新鲜度已更新）','g'); });
+  document.getElementById('logout-btn').addEventListener('click',function(){ toast('退出（原型示意，不真正登出）'); });
+  document.getElementById('nav-toggle').addEventListener('click',function(){ sidenav.classList.toggle('on'); navscrim.classList.toggle('on',sidenav.classList.contains('on')); });
+  navscrim.addEventListener('click',function(){ sidenav.classList.remove('on'); navscrim.classList.remove('on'); });
+
+  function fresh(){ var el=document.getElementById('fresh'); if(el) el.textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false}); }
+  function clock(){ var el=document.getElementById('clock'); if(el) el.textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false}); }
+  setInterval(clock,1000); clock(); fresh();
+
+  /* ---------- 导航渲染 ---------- */
+  function navDef(){ if(role==='client') return NAV_CLIENT; return navOldOrder?NAV_ADMIN_OLD:NAV_ADMIN; }
+  function renderNav(){
+    sidenav.innerHTML='';
+    navDef().forEach(function(g){
+      var lb=document.createElement('div'); lb.className='nav-glabel'; lb.textContent=g.label; sidenav.appendChild(lb);
+      g.items.forEach(function(it){
+        var b=document.createElement('button'); var isPrev=it[0]==='__portal__';
+        if(!isPrev && it[0]===currentTab) b.className='on';
+        b.setAttribute('data-tab',isPrev?'portal':it[0]);
+        if(isPrev) b.setAttribute('data-preview','1');
+        b.innerHTML='<span class="nv-ic">'+it[2]+'</span><span>'+it[1]+'</span>'+
+          (it[0]==='approvals'?'<span class="nav-badge">3</span>':'');
+        sidenav.appendChild(b);
+      });
+    });
+    // nav-foot（全局控件沉底，02 §6.2）
+    var foot=document.createElement('div'); foot.className='nav-foot';
+    foot.innerHTML='<div class="row"><span>窗口</span><select id="nf-win"><option>5m</option><option>1h</option><option selected>24h</option><option>7d</option></select></div>'+
+      '<div class="row"><span>自动刷新</span><label><input type="checkbox" id="nf-auto" checked> 开</label></div>'+
+      '<div class="row"><span>刷新间隔</span><select id="nf-int"><option>15s</option><option>30s</option><option>60s</option></select></div>'+
+      '<div class="dim" style="font-size:var(--fs-2xs)">原型 · 数据为示意 · 零外部依赖</div>';
+    sidenav.appendChild(foot);
+  }
+  sidenav.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-tab]'); if(!b) return;
+    var t=b.getAttribute('data-tab');
+    if(b.getAttribute('data-preview')){ setRole('client'); toast('已切到「客户门户预览」视角','g'); return; }
+    goto(t);
+  });
+
+  /* ---------- 路由 ---------- */
+  var currentTab=(location.hash||'#/ov').replace(/^#\/?/,'').split('/')[0]||'ov';
+  function visibleTabs(){ return role==='client'?CLIENT_TABS.slice():(['ov','met','ledger','diag','users','tenants','approvals','plans','route','ch','billing','observ','instances','ops','trust','audit','agent']); }
+  function goto(t){
+    if(visibleTabs().indexOf(t)<0) t=(role==='client'?'portal':'ov');
+    currentTab=t; location.hash='#/'+t; renderNav(); render();
+    sidenav.classList.remove('on'); navscrim.classList.remove('on');
+    view.focus();
+  }
+  window.addEventListener('hashchange',function(){
+    var t=(location.hash||'#/ov').replace(/^#\/?/,'').split('/')[0]||'ov';
+    if(t!==currentTab){ currentTab=t; renderNav(); render(); }
+    else { applyAnchor(); }
+  });
+
+  /* ---------- 锚点定位（AC-03 / P2-10） ---------- */
+  function anchorId(){ var p=(location.hash||'').replace(/^#\/?/,'').split('/'); return p.length>1?p[1]:''; }
+  var _anchorTimer=null;
+  function applyAnchor(){
+    var id=anchorId(); if(!id) return;
+    var el=view.querySelector('[id="'+id+'"]'); if(!el) return;
+    Array.prototype.forEach.call(view.querySelectorAll('.anchor-target'),function(n){ n.classList.remove('anchor-target'); });
+    try{ el.scrollIntoView({block:'start',behavior:'smooth'}); }catch(_){ try{ el.scrollIntoView(); }catch(__){} }
+    el.classList.add('anchor-target');
+    if(_anchorTimer) clearTimeout(_anchorTimer);
+    _anchorTimer=setTimeout(function(){ el.classList.remove('anchor-target'); },2200);
+  }
+
+  /* ---------- 页面渲染 ---------- */
+  function render(){
+    var tpl=document.getElementById('tpl-'+currentTab);
+    if(!tpl){ view.innerHTML='<div class="empty"><div class="ic">○</div><div>页面「'+currentTab+'」暂未在原型中实现</div></div>'; return; }
+    var html=tpl.innerHTML.replace(/\*\*([^*\n]+?)\*\*/g,'<b>$1</b>'); // 轻量 markdown 强调
+    view.innerHTML=html;
+    // 角色可见性过滤（元素可带 data-roles="owner,sre"）
+    Array.prototype.forEach.call(view.querySelectorAll('[data-roles]'),function(el){
+      var allowed=(el.getAttribute('data-roles')||'').split(',');
+      if(allowed.indexOf(role)<0) el.remove();
+    });
+    afterRender();
+    applyAnchor();
+  }
+
+  function afterRender(){
+    // 90 天可用性条形（#/status）
+    var up=view.querySelector('.uptime');
+    if(up && !up.children.length){
+      for(var i=0;i<90;i++){ var s=document.createElement('i');
+        if(i===62||i===55) s.className='y'; if(i===40) s.className='r';
+        s.title='第 '+(90-i)+' 天前 · '+(s.className==='r'?'中断':s.className==='y'?'降级':'正常'); up.appendChild(s); }
+    }
+    // P2-7：表格首载骨架
+    firstLoadSkeleton('#keys-table',9); firstLoadSkeleton('#users-table',9); firstLoadSkeleton('#audit-table',6);
+    // P1-4：导航重排提示的关闭态 / 开关文案
+    var nr=view.querySelector('#nav-reorder-note');
+    if(nr){
+      var dis=false; try{ dis=localStorage.getItem('proto_nav_note_dismissed')==='1'; }catch(_){}
+      if(dis) nr.style.display='none';
+      var tb=document.getElementById('toggle-nav-order'); if(tb) tb.textContent=navOldOrder?'按新顺序查看':'按旧顺序查看';
+    }
+  }
+
+  /* ---------- 事件委托 ---------- */
+  document.addEventListener('click',function(e){
+    var el;
+    if((el=e.target.closest('[data-goto]'))){ goto(el.getAttribute('data-goto')); return; }
+    if((el=e.target.closest('[data-copy-sel]'))){ var src=document.querySelector(el.getAttribute('data-copy-sel')); copyText(src?src.textContent.trim():''); return; } /* P2-1 */
+    if((el=e.target.closest('[data-copy]'))){ copyText(el.getAttribute('data-copy')); return; }
+    if((el=e.target.closest('[data-drawer]'))){ openDrawer(el.getAttribute('data-drawer'),el); return; }
+    if((el=e.target.closest('[data-action]'))){ doAction(el.getAttribute('data-action')); return; } /* P1-2 */
+    if((el=e.target.closest('[data-export]'))){ doExport(el.getAttribute('data-export'),el.getAttribute('data-fmt')); return; }
+    if((el=e.target.closest('[data-kfilter]'))){ filterRows('#keys-table',el.getAttribute('data-kfilter'),'kstate',el); return; }
+    if((el=e.target.closest('[data-ufilter]'))){ filterRows('#users-table',el.getAttribute('data-ufilter'),'ustate',el); return; }
+    if((el=e.target.closest('[data-apv]'))){ apvTab(el.getAttribute('data-apv'),el); return; }
+    if((el=e.target.closest('[data-dim]'))){ routeDim(el.getAttribute('data-dim'),el); return; }
+    if((el=e.target.closest('[data-move]'))){ moveCard(el); return; }
+    if((el=e.target.closest('.banner[onclick]'))){ return; } // 交给内联 onclick
+  });
+
+  /* 搜索（输入） */
+  document.addEventListener('input',function(e){
+    var t=e.target;
+    if(t.id==='keys-search'){ searchTable('#keys-table',t.value,'kstate','all'); }
+    if(t.id==='users-search'){ searchTable('#users-table',t.value,'ustate','all'); }
+    if(t.id==='audit-search'){ searchTable('#audit-table',t.value,null,'all'); }
+  });
+
+  var skelDone={};
+  /* P2-7：表格首载骨架（对齐 AC-21） */
+  function firstLoadSkeleton(sel,cols){
+    if(skelDone[sel]) return; skelDone[sel]=true;
+    var tb=document.querySelector(sel+' tbody'); if(!tb) return;
+    var real=tb.innerHTML, rows='';
+    for(var i=0;i<3;i++){ rows+='<tr><td colspan="'+(cols||9)+'"><div class="skel"></div></td></tr>'; }
+    tb.innerHTML=rows;
+    setTimeout(function(){ tb.innerHTML=real; },420);
+  }
+  /* P2-7：筛选/搜索无结果 → 显示空态（对齐 AC-22） */
+  function updateKeyEmpty(){
+    var tb=document.querySelector('#keys-table tbody'); if(!tb) return;
+    var any=false;
+    Array.prototype.forEach.call(tb.querySelectorAll('tr'),function(r){ if(r.style.display!=='none') any=true; });
+    var e=document.getElementById('keys-empty'); if(e) e.hidden=any;
+    var t=document.getElementById('keys-table'); if(t) t.style.display=any?'':'none';
+  }
+  function searchTable(sel,q){
+    var rows=document.querySelectorAll(sel+' tbody tr');
+    var k=(q||'').toLowerCase();
+    Array.prototype.forEach.call(rows,function(r){
+      if(r.classList.contains('tenant-head')) return;
+      var txt=(r.getAttribute('data-text')||r.textContent||'').toLowerCase();
+      r.style.display=(!k||txt.indexOf(k)>=0)?'':'none';
+    });
+    if(sel==='#keys-table') updateKeyEmpty();
+  }
+  function filterRows(sel,flt,attr,btn){
+    var sib=btn.parentNode.querySelectorAll('[data-kfilter],[data-ufilter]');
+    Array.prototype.forEach.call(sib,function(b){ b.style.fontWeight=''; });
+    btn.style.fontWeight='600';
+    Array.prototype.forEach.call(document.querySelectorAll(sel+' tbody tr'),function(r){
+      if(r.classList.contains('tenant-head')){ r.style.display=''; return; }
+      var st=r.getAttribute('data-'+ (attr==='kstate'?'kstate':'ustate'));
+      var show = flt==='all' || (flt==='active'&&st==='active') || (flt==='attention'&&st==='attention');
+      r.style.display=show?'':'none';
+    });
+    if(sel==='#keys-table') updateKeyEmpty();
+  }
+  function apvTab(v,btn){
+    btn.parentNode.querySelectorAll('button').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    Array.prototype.forEach.call(document.querySelectorAll('#apv-table tbody tr'),function(r){
+      var st=r.getAttribute('data-apv'); r.style.display=(v==='all'||v===st)?'':'none';
+    });
+  }
+  function routeDim(dim,btn){
+    btn.parentNode.querySelectorAll('button').forEach(function(b){ b.classList.remove('on'); }); btn.classList.add('on');
+    var list=document.getElementById('route-list'); if(!list) return;
+    var cards=Array.prototype.slice.call(list.children);
+    var keymap={priority:'p',cost:'cost',weight:'weight',latency:'lat'};
+    var k=keymap[dim];
+    cards.sort(function(a,b){ return (parseFloat(b.getAttribute('data-'+k))||0)-(parseFloat(a.getAttribute('data-'+k))||0); });
+    cards.forEach(function(c){ list.appendChild(c); });
+    var note=document.getElementById('route-note');
+    var txt={priority:'priority 大者优先',cost:'按成本升序（低成本优先，需 providers[].cost）',weight:'按权重降序',latency:'按实测 p95 升序'};
+    if(note){ note.innerHTML='当前按 <b>'+dim+'</b> 预览排序：'+txt[dim]+'。切换仅改变**预览排序**，不直接改策略。'.replace(/\*\*([^*\n]+?)\*\*/g,'<b>$1</b>'); }
+    toast('路由预览排序：'+dim,'g');
+  }
+  function moveCard(btn){
+    var card=btn.closest('.block'); if(!card) return;
+    if(btn.getAttribute('data-move')==='up' && card.previousElementSibling) card.parentNode.insertBefore(card,card.previousElementSibling);
+    if(btn.getAttribute('data-move')==='down' && card.nextElementSibling) card.parentNode.insertBefore(card.nextElementSibling,card);
+    toast('已调整优先级顺序（未保存）','y');
+  }
+
+  /* ---------- 复制 ---------- */
+  function copyText(text){
+    try{ navigator.clipboard.writeText(text).then(function(){toast('已复制到剪贴板','g');},function(){fallback();}); }
+    catch(_){ fallback(); }
+    function fallback(){
+      try{ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制到剪贴板','g'); }
+      catch(e){ toast('复制失败，请手动选中复制','y'); }
+    }
+  }
+
+  /* ---------- 导出（CSV BOM+CRLF / JSON；02 §1.3 交互） ---------- */
+  function doExport(kind,fmt){
+    var rows=[['id','备注','指纹','状态','套餐','额度%','预算%','到期'],
+      ['k1','生产-主','a91c04ef','生效中','standard','64%','78%','2027-01-01'],
+      ['k2','测试-临时','7b3e19aa','将耗尽','standard','92%','100%','2026-11-20']];
+    var name=kind+'_'+new Date().toISOString().slice(0,10);
+    if(fmt==='json'){
+      var obj=rows.slice(1).map(function(r){var o={};rows[0].forEach(function(h,i){o[h]=r[i];});return o;});
+      download(name+'.json',JSON.stringify(obj,null,2),'application/json');
+    } else {
+      var csv=rows.map(function(r){return r.map(csvCell).join(',');}).join('\r\n');
+      download(name+'.csv','\ufeff'+csv,'text/csv');
+    }
+    toast('已导出 '+(fmt==='json'?name+'.json':name+'.csv')+'（示意数据）','g');
+  }
+  function csvCell(c){ c=String(c==null?'':c); return (c.indexOf(',')>=0||c.indexOf('"')>=0)?'"'+c.replace(/"/g,'""')+'"':c; }
+  function download(fn,text,mime){
+    try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:mime})); a.download=fn; a.click(); URL.revokeObjectURL(a.href); }
+    catch(e){ toast('导出失败：检查浏览器下载权限','r'); }
+  }
+
+  /* ---------- whoami 自检（四态；明文不落盘） ---------- */
+  var whoamiBtn=document.getElementById('whoami-btn');
+  document.addEventListener('click',function(e){
+    if(e.target.id==='whoami-btn'){ runWhoami(); }
+    if(e.target.id==='whoami-clear'){ var i=document.getElementById('whoami-input'); if(i) i.value=''; var r=document.getElementById('whoami-result'); if(r) r.innerHTML=''; }
+    if(e.target.id==='load-models'){ loadModels(); }
+  });
+  function runWhoami(){
+    var inp=document.getElementById('whoami-input'), out=document.getElementById('whoami-result');
+    if(!inp||!out) return;
+    var v=(inp.value||'').trim();
+    if(!v){ toast('请先粘贴一个 key','y'); return; }
+    out.innerHTML='<span class="dim">自检中…</span>';
+    setTimeout(function(){
+      // 演示用：按输入内容/长度映射四态之一（真实版由服务端换算指纹判断）
+      var states=[
+        ['g','● 有效','该 key 由本网关签发且当前生效可用。下一步：直接调用 /v1/chat/completions。'],
+        ['r','■ 已禁用','该 key 由本网关签发，但已被停用。下一步：在「我的密钥」启用，或申请新 key。'],
+        ['r','■ 已过期','该 key 已过期。下一步：轮换以获得新 key。'],
+        ['n','○ 不是本网关当前签发的','未在当前密钥库中找到该指纹。下一步：确认是否用了别的部署/租户的 key。']
+      ];
+      var idx=(v.length+ (v.charCodeAt(0)||0))%4;
+      var s=states[idx];
+      out.innerHTML='<div class="note '+(s[0]==='g'?'ok':s[0]==='r'?'bad':s[0]==='y'?'warn':'')+'"><span class="chip '+s[0]+'">'+s[1]+'</span> '+s[2]+'</div>'+
+        '<div class="dim" style="font-size:var(--fs-xs);margin-top:6px">指纹示意：sha256("relay-key:"+key) 前 8 位 · 明文不写日志、不落盘、不进台账</div>';
+    },420);
+  }
+  function loadModels(){
+    var hint=document.getElementById('models-hint'), list=document.getElementById('models-list');
+    if(!list) return;
+    hint.textContent='加载中…'; list.innerHTML='<div class="skel"></div><div class="skel w80"></div>';
+    setTimeout(function(){
+      hint.textContent='GET /v1/models（示意）';
+      list.innerHTML='<div class="ladder"><span class="node">mimo-v2.5-pro</span><span class="node">mimo-v2.5</span><span class="node">agnes-2.5-pro</span><span class="node">agnes-3.0-flash</span><span class="node cross">旗舰（阶梯名）</span><span class="node cross">极速（阶梯名）</span></div>';
+    },600);
+  }
+
+  /* ---------- 抽屉（02 §5.4；规格 I1/I2/I13） ---------- */
+  var lastTrigger=null;
+  var DRAWERS={
+    'key-detail':{t:'密钥详情',b:function(){return '<div class="kv"><dt>备注</dt><dd>生产-主</dd><dt>指纹</dt><dd class="mono">a91c04ef</dd><dt>套餐</dt><dd><span class="chip tier-std">standard</span></dd><dt>额度</dt><dd>64%</dd><dt>预算</dt><dd>78%</dd><dt>到期</dt><dd class="mono">2027-01-01</dd></div><div class="note">明文永不回显。忘记明文请使用「轮换」。</div>';},f:'<button class="b" data-drawer="rotate-key">轮换</button><button class="b" data-close>关闭</button>'},
+    'rotate-key':{t:'轮换密钥（两步确认）',b:function(){return '<div class="note warn">轮换会让<b>旧 key 立即失效</b>——使用旧 key 的客户端会收到 401，请先切换。此操作不可逆。</div>'+
+      '<div class="f"><label>第 1 步</label><span>生成新 key（指纹将更新）</span></div>'+
+      '<div class="f"><label>第 2 步</label><label style="display:flex;gap:8px;align-items:center;color:var(--c-fg)"><input type="checkbox" id="rot-ck"> 我知道旧 key 会立即失效</label></div>';},
+      f:'<button class="b" data-close>取消</button><button class="b danger" id="rot-confirm" disabled>确认轮换</button>',after:function(){var c=document.getElementById('rot-confirm');if(c)c.onclick=function(){secret('sk-relay-'+Math.random().toString(36).slice(2,10)+'（新）');};var k=document.getElementById('rot-ck');if(k)k.onchange=function(){c.disabled=!k.checked;};}},
+    'apply-key':{t:'申请新密钥',b:function(){return '<div class="f"><label>选择套餐</label><select><option>standard（按 token）</option><option>pro（订阅）</option><option>free</option></select></div>'+
+      '<div class="f"><label>期望模型</label><div><label><input type="checkbox" checked> mimo-v2.5-pro</label> <label><input type="checkbox" checked> 旗舰</label> <label><input type="checkbox"> 极速</label></div></div>'+
+      '<div class="f"><label>用途备注</label><input type="text" placeholder="如：生产环境 / 测试"></div>'+
+      '<div class="note">提交后进入「密钥审批队列」，运营批准后签发；明文一次性显示。</div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-drawer="apply-submit">提交申请</button>'},
+    'apply-submit':{t:'提交成功',b:function(){return '<div class="note ok">申请单 <b>REQ-20261024-004</b> 已提交，状态：<span class="chip b">● 待审批</span>。</div><div class="note">运营批准后将签发新 key，明文一次性显示。</div>';},f:'<button class="b pri" data-close>知道了</button>'},
+    'req-detail':{t:'申请进度',b:function(){return '<div class="kv"><dt>申请单</dt><dd class="mono">REQ-20261024-001</dd><dt>类型</dt><dd>新 key（pro）</dd><dt>状态</dt><dd><span class="chip b">● 待审批</span></dd></div>'+
+      '<h4 style="margin:14px 0 6px">审批记录</h4>'+
+      '<div class="step"><span class="t">10-24 10:20</span><span class="st ok">提交</span><span>acme-corp（自助）</span></div>'+
+      '<div class="step"><span class="t">等待中</span><span class="st fail">—</span><span>待运营审批</span></div>';},f:'<button class="b" data-close>关闭</button>'},
+    'apv-detail':{t:'审批 · REQ-20261024-001',b:function(){
+        var canApprove=(role==='owner');
+        return '<div class="kv"><dt>客户</dt><dd class="mono">acme-corp</dd><dt>类型</dt><dd>新 key</dd><dt>目标套餐</dt><dd>pro</dd><dt>期望模型</dt><dd>6 个</dd><dt>申请人</dt><dd>自助</dd></div>'+
+        '<h4 style="margin:14px 0 6px">审批记录时间线</h4>'+
+        '<div class="step"><span class="t">10-24 10:20</span><span class="st ok">提交</span><span>acme-corp（自助）</span></div>'+
+        '<div class="f" style="margin-top:12px"><label>审批备注</label><input type="text" id="apv-note" placeholder="批准请留痕；拒绝必填理由"></div>'+
+        (canApprove?'':'<div class="note warn">当前角色（'+role+'）仅可初审/备注，不能批准（RBAC §6.1）。</div>');},
+      f:function(){var can=(role==='owner');return '<button class="b" data-close>取消</button><button class="b danger" '+ (can?'':'disabled') +' data-drawer="apv-reject">拒绝</button><button class="b" '+ (can?'':'disabled') +' data-drawer="apv-partial">部分批准</button><button class="b pri" '+ (can?'':'disabled') +' id="apv-approve">批准并签发</button>';},after:function(){
+        var a=document.getElementById('apv-approve'); if(a) a.onclick=function(){ secret('sk-relay-'+Math.random().toString(36).slice(2,10)+'（新签发）'); toast('已批准并签发','g'); };
+      }},
+    'apv-reject':{t:'拒绝申请（理由必填）',b:function(){return '<div class="f"><label>拒绝理由</label><textarea rows="3" id="rej-reason" placeholder="必填"></textarea></div>';},f:'<button class="b" data-close>取消</button><button class="b danger" id="rej-go">确认拒绝</button>',after:function(){var g=document.getElementById('rej-go');if(g)g.onclick=function(){var r=document.getElementById('rej-reason');if(!r.value.trim()){toast('拒绝必须填写理由','y');return;}closeDrawer();toast('已拒绝该申请','y');};}},
+    'apv-partial':{t:'部分批准',b:function(){return '<div class="note">部分批准必须至少改一个条件（白名单或预算）。</div><div class="f"><label>预算(¥)</label><input type="number" value="10"></div><div class="f"><label>白名单</label><input type="text" value="mimo-v2.5-pro, 旗舰"></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-drawer="apv-partial-ok">提交</button>'},
+    'apv-partial-ok':{t:'已部分批准',b:function(){return '<div class="note ok">已部分批准并入队签发。</div>';},f:'<button class="b pri" data-close>知道了</button>'},
+    'apply-plan':{t:'选择套餐',b:function(){return '<div class="note">将提交「换套餐」申请，批准后签发新 key（白名单与预算更新）。</div><div class="kv"><dt>目标套餐</dt><dd>专业 pro</dd><dt>圈定模型</dt><dd>6 个</dd><dt>预算</dt><dd>¥—（待运营确认）</dd></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-drawer="apply-submit">提交申请</button>'},
+    'apply-approval':{t:'发起审批（运营）',b:function(){return '<div class="f"><label>客户(tenantId)</label><input type="text" placeholder="acme-corp"></div><div class="f"><label>类型</label><select><option>新 key</option><option>扩容</option><option>换套餐</option></select></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-drawer="apply-submit">提交</button>'},
+    'create-key':{t:'新建 Key（运营）',b:function(){return '<div class="f"><label>备注</label><input type="text"></div><div class="f"><label>分层</label><select><option>standard</option><option>pro</option><option>free</option></select></div><div class="f"><label>预算(¥)</label><input type="number" value="10"></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" id="ck-go">创建并显示明文</button>',after:function(){var g=document.getElementById('ck-go');if(g)g.onclick=function(){secret('sk-relay-'+Math.random().toString(36).slice(2,10));};}},
+    'more-actions':{t:'更多动作（不可逆）',b:function(){return '<div class="note bad">以下动作不可逆，请确认后果后再操作。</div><div class="actions"><button class="b" data-drawer="rotate-key">轮换（旧 key 立即失效）</button><button class="b danger">停用</button><button class="b danger">删除</button></div>';},f:'<button class="b" data-close>关闭</button>'},
+    'provider-detail':{t:'上游详情',b:function(){return '<div class="kv"><dt>上游</dt><dd class="mono">agnes 原厂</dd><dt>状态</dt><dd><span class="chip g">健康</span></dd><dt>priority</dt><dd>30</dd><dt>Key 池</dt><dd>3/4 可用（1 冷却）</dd></div><h4 style="margin:14px 0 6px">Key 池</h4><div class="step"><span class="t">key-1</span><span class="st ok">可用</span><span>轮询中</span></div><div class="step"><span class="t">key-2</span><span class="st fail">冷却</span><span>限流，冷却中</span></div>';},f:'<button class="b" data-close>关闭</button>'},
+    'remove-provider':{t:'摘除上游',b:function(){return '<div class="note bad">摘除后流量<b>立即</b>切到兜底上游。该上游当前承载流量约 38%。</div>';},f:'<button class="b" data-close>取消</button><button class="b danger" id="rm-go">确认摘除</button>',after:function(){var g=document.getElementById('rm-go');if(g)g.onclick=function(){closeDrawer();toast('已摘除上游（原型示意，立即生效）','y');};}},
+    'clear-breaker':{t:'清熔断',b:function(){return '<div class="note">清除熔断计数并立即试探一次；成功则切回主用，失败则立即再熔断。</div>';},f:'<button class="b" data-close>取消</button><button class="b pri" id="cb-go">确认清熔断</button>',after:function(){var g=document.getElementById('cb-go');if(g)g.onclick=function(){closeDrawer();toast('已清熔断并试探','g');};}},
+    'bill-detail':{t:'单客户对账',b:function(){return '<div class="kv"><dt>客户</dt><dd class="mono">acme-corp</dd><dt>周期</dt><dd>2026-10-01 ~ 2026-10-30</dd><dt>成本</dt><dd>¥7.42</dd><dt>牌面价</dt><dd>¥10.00</dd><dt>毛利</dt><dd class="up">¥2.58</dd><dt>币种</dt><dd>¥ CNY · 不含税</dd></div>';},f:'<button class="b" data-export="billing">导出对账单</button><button class="b" data-close>关闭</button>'},
+    'trace-detail':{t:'请求轨迹 tr_91c2',b:function(){return '<div class="step"><span class="t">+0ms</span><span class="st ok">ok</span><span>auth · key=pro tier=pro</span></div>'+
+      '<div class="step"><span class="t">+1ms</span><span class="st ok">ok</span><span>precheck · 通过（62µs）</span></div>'+
+      '<div class="step"><span class="t">+2ms</span><span class="st ok">ok</span><span>route · → agnes（priority）model=旗舰</span></div>'+
+      '<div class="step"><span class="t">+180ms</span><span class="st fail">FAIL</span><span>upstream_response · HTTP 429</span></div>'+
+      '<div class="step"><span class="t">+181ms</span><span class="st fail">FAIL</span><span>classify · rate_limited → retry_with_backoff</span></div>'+
+      '<div class="step"><span class="t">+205ms</span><span class="st ok">ok</span><span>route · → 聚合站（failover）</span></div>'+
+      '<div class="step"><span class="t">+414ms</span><span class="st ok">ok</span><span>respond · HTTP 200（客户无感）</span></div>'+
+      '<div class="note">x-relay-model-requested=旗舰 · x-relay-model-served=mimo-v2.5-pro · x-relay-ladder=2/3（透明可自证）</div>';},f:'<button class="b" data-close>关闭</button>'},
+    'subscribe':{t:'订阅状态更新',b:function(){return '<div class="f"><label>邮箱</label><input type="email" placeholder="you@example.com"></div><div class="note">通知渠道待接入（阶段1 Q10）——本轮仅表达入口。</div>';},f:'<button class="b" data-close>取消</button><button class="b pri" id="sub-go">保存</button>',after:function(){var g=document.getElementById('sub-go');if(g)g.onclick=function(){closeDrawer();toast('已订阅（原型示意）','g');};}},
+    'budget-warn':{t:'预算预警',b:function(){return '<div class="kv"><dt>本周期预算</dt><dd>¥10.0000</dd><dt>已用</dt><dd>78%（¥7.42）</dd><dt>超预算行为</dt><dd><span class="chip r">■ 返回 402</span>（不是限流，别重试）</dd></div><div class="note warn">预算耗尽后调用会返回 <b>402</b>，客户端应立即停止重试并升级套餐。</div>';},f:'<button class="b" data-close>关闭</button><button class="b pri" data-goto="plans">升级套餐</button>'},
+    'key-invalid':{t:'客户端 key 不对（401）',b:function(){return '<div class="note bad">这是网关自己回的 <b>401 auth_invalid</b>（无上游参与），与"上游拒绝你配置的密钥"是两件事（ADR-016）。</div><div class="kv"><dt>修复①</dt><dd>让客户端换用正确的 key</dd><dt>修复②</dt><dd>到「我的密钥」粘贴自检（whoami）确认四态</dd><dt>证据</dt><dd class="mono">台账按指纹聚合（仅指纹，永不记明文）</dd></div>';},f:'<button class="b" data-close>关闭</button><button class="b" data-goto="keys">去自检</button>'},
+    'upstream-invalid':{t:'上游拒绝密钥',b:function(){return '<div class="note warn">命中的是<b>上游返回的密钥错误</b>——修复动作是<b>运维更换上游密钥</b>，与客户端手上的 key 无关。</div>';},f:'<button class="b" data-close>关闭</button><button class="b" data-goto="ch">去上游页</button>'},
+    'plan-manage':{t:'套餐管理（运营）',b:function(){return '<div class="note">运营视角：编辑在售套餐的分层、圈定模型白名单与预算闸；下架后客户不可再选购。</div><div class="f"><label>套餐名</label><input type="text" value="标准 standard"></div><div class="f"><label>rpm / 并发</label><input type="text" value="300 / 32"></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-close>保存（原型示意）</button>'},
+    'trace-stream':{t:'流式中断轨迹 tr_st1（SSE error 帧）',b:function(){return '<div class="step"><span class="t">+0ms</span><span class="st ok">ok</span><span>auth · tier=pro</span></div>'+
+      '<div class="step"><span class="t">+2ms</span><span class="st ok">ok</span><span>route · → agnes（priority）model=旗舰（SSE）</span></div>'+
+      '<div class="step"><span class="t">+140ms</span><span class="st ok">ok</span><span>upstream_response · HTTP 200（流式已开始回传）</span></div>'+
+      '<div class="step"><span class="t">+1200ms</span><span class="st ok">ok</span><span>stream · chunk 1/2/3 已透传客户端</span></div>'+
+      '<div class="step"><span class="t">+3400ms</span><span class="st fail">FAIL</span><span>stream · 上游第 3 个 chunk 后断连（mid-stream）</span></div>'+
+      '<div class="step"><span class="t">+3401ms</span><span class="st fail">FAIL</span><span>classify · stream_interrupted → retry_with_backoff</span></div>'+
+      '<div class="step"><span class="t">+3402ms</span><span class="st ok">ok</span><span><b>inject</b> · 注入 SSE error 帧（pro=full）</span></div>'+
+      '<pre id="stream-frame">data: {"error":{"message":"upstream stream interrupted","type":"upstream_error","code":"stream_interrupted","param":null},"relay_attribution":{"failure_reason":"stream_interrupted","suggested_next":{"action":"retry_with_backoff"},"recoverable":true},"choices":[{"delta":{"content":""},"finish_reason":"error"}]}\n\ndata: [DONE]</pre>'+
+      '<div class="note">分层投递：<b>free=不注入</b>（纯管道）· standard=header + 最小 error 帧 · pro=完整归因帧。已回传前（响应头未发出）的失败走静默重试，不注入。（REQ-03 验收）</div>';},f:'<button class="b" data-copy-sel="#stream-frame">复制帧示例</button><button class="b" data-close>关闭</button>'},
+    'tenant-detail':{t:'租户详情',b:function(){return '<div class="kv"><dt>tenantId</dt><dd class="mono">acme-corp</dd><dt>名称</dt><dd>Acme 科技</dd><dt>隔离级别</dt><dd><span class="chip b">● 逻辑强隔离</span></dd><dt>key 数</dt><dd>2</dd><dt>套餐</dt><dd><span class="chip tier-std">standard</span></dd><dt>越权行为</dt><dd>返回 403 且不泄漏他租户存在性</dd></div><div class="note">REQ-07：所有客户面端点强制 tenantId 谓词；RBAC 与租户隔离叠加；审计留痕。非目标：不做物理隔离。</div>';},f:'<button class="b" data-close>关闭</button>'},
+    'tenant-new':{t:'新建租户',b:function(){return '<div class="f"><label>tenantId</label><input type="text" placeholder="如 newco"></div><div class="f"><label>名称</label><input type="text"></div><div class="f"><label>默认套餐</label><select><option>free</option><option selected>standard</option><option>pro</option></select></div>';},f:'<button class="b" data-close>取消</button><button class="b pri" data-close>创建（原型示意）</button>'},
+    'state-external':{t:'状态外置详情',b:function(){return '<div class="kv"><dt>state.backend</dt><dd class="mono">redis</dd><dt>Redis</dt><dd class="mono">127.0.0.1:6379 · 连接 0.4ms</dd><dt>限流/配额</dt><dd class="mono">Redis 原子计数</dd><dt>熔断/半开</dt><dd class="mono">全局令牌化半开</dd><dt>故障策略</dt><dd>fail-open 放行 + 记降级事件</dd></div><div class="note">REQ-01/02/09：状态外置分阶段启用；Redis 故障时降级为实例内判定，不因状态层故障拒绝请求。</div>';},f:'<button class="b" data-close>关闭</button>'}
+  };
+
+  var shell=document.getElementById('shell');
+  /* P1-3：抽屉背景 inert + Tab 首尾回环 */
+  function setBackgroundInert(on){
+    [shell,document.getElementById('navscrim')].forEach(function(n){ if(!n) return;
+      try{ if(on){ n.setAttribute('inert',''); n.setAttribute('aria-hidden','true'); } else { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); } }catch(_){}
+    });
+  }
+  function drawerFocusables(){
+    return Array.prototype.slice.call(drawer.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'));
+  }
+  function openDrawer(kind,trigger){
+    var d=DRAWERS[kind]; if(!d){ toast('该抽屉在原型中未实现：'+kind,'y'); return; }
+    lastTrigger=trigger||null;
+    drawerTitle.textContent=typeof d.t==='function'?d.t():d.t;
+    drawerBody.innerHTML=typeof d.b==='function'?d.b():d.b;
+    drawerFoot.innerHTML=typeof d.f==='function'?d.f():d.f;
+    drawer.classList.add('on'); scrim.classList.add('on');
+    if(d.after) d.after();
+    setBackgroundInert(true);
+    drawer.focus();
+  }
+  function closeDrawer(){
+    drawer.classList.remove('on'); scrim.classList.remove('on');
+    setBackgroundInert(false);
+    if(lastTrigger && lastTrigger.focus) lastTrigger.focus();   /* 焦点归还触发元素 */
+  }
+  /* Tab 焦点锁定在抽屉内（首尾回环） */
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Tab' || !drawer.classList.contains('on')) return;
+    var f=drawerFocusables(); if(!f.length) return;
+    var first=f[0], last=f[f.length-1], act=document.activeElement;
+    var inside=drawer.contains(act);
+    if(e.shiftKey && (act===first || !inside)){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && (act===last || !inside)){ e.preventDefault(); first.focus(); }
+  });
+  function secret(plain){
+    lastTrigger=lastTrigger||document.activeElement;
+    drawerTitle.textContent='一次性明文（只显示一次）';
+    drawerBody.innerHTML='<div class="note bad"><b>这是你唯一一次看到明文的机会。</b>关闭后无法再查看，服务端只存 sha256；忘记请轮换。</div>'+
+      '<div class="secret"><span class="mono">'+plain+'</span><button class="b" data-copy="'+plain.replace(/"/g,'&quot;')+'">复制</button></div>'+
+      '<h4 style="margin:16px 0 6px">客户接入包</h4>'+
+      '<div class="kv"><dt>base_url</dt><dd class="mono">https://api-relay.example.com/v1</dd><dt>指纹</dt><dd class="mono">'+Math.random().toString(16).slice(2,10)+'</dd></div>';
+    drawerFoot.innerHTML='<button class="b pri" data-close>我已记录明文</button>';
+    drawer.classList.add('on'); scrim.classList.add('on'); setBackgroundInert(true); drawer.focus();
+    toast('已签发新 key（明文仅显示一次）','g');
+  }
+  document.getElementById('drawer-close').addEventListener('click',closeDrawer);
+  scrim.addEventListener('click',closeDrawer);
+  document.addEventListener('click',function(e){ if(e.target.closest('[data-close]')) closeDrawer(); });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){ if(drawer.classList.contains('on')){ closeDrawer(); } else if(sidenav.classList.contains('on')){ sidenav.classList.remove('on'); navscrim.classList.remove('on'); } }
+  });
+
+  /* ---------- 初始化 ---------- */
+  try{ var st=localStorage.getItem('proto_theme'); if(st) root.dataset.theme=st; }catch(_){}
+  renderNav(); render(); fresh();
+
+  /* 审批批量勾选计数 */
+  document.addEventListener('change',function(e){
+    if(e.target.id==='apv-all'){ var on=e.target.checked; document.querySelectorAll('.apv-ck:not(:disabled)').forEach(function(c){c.checked=on;}); }
+    if(e.target.classList && e.target.classList.contains('apv-ck')){
+      var n=document.querySelectorAll('.apv-ck:checked').length; var b=document.getElementById('batch-approve');
+      if(b) b.textContent='批量批准（已选 '+n+'）';
+    }
+    /* P1-2：窗口/周期选择器 change 联动（对齐交互 I4） */
+    if(e.target.id==='portal-win'||e.target.id==='ov-win'||e.target.id==='nf-win'){ toast('窗口已切到 '+e.target.value+'，图表/数字联动刷新（I4）','g'); fresh(); }
+    if(e.target.id==='usage-period'){ toast('周期已切换：'+e.target.value+'，账单重拉（I4）','g'); }
+    if(e.target.id==='nf-int'){ toast('刷新间隔已设为 '+e.target.value,'g'); }
+    if(e.target.id==='cost-auto'){ toast('成本路由自动化：'+(e.target.checked?'已启用（缺失 cost 时给出 route_reason，不静默）':'已关闭，退化为纯优先级路由'), e.target.checked?'g':'y'); }
+  });
+  document.addEventListener('click',function(e){
+    if(e.target.id==='batch-approve'){ var n=document.querySelectorAll('.apv-ck:checked').length;
+      if(!n){ toast('请先勾选要批准的申请','y'); return; } toast('已批量批准 '+n+' 条，明文将各自一次性显示','g'); }
+    /* P1-4：按旧顺序 / 新顺序切换 + 隐藏提示 */
+    if(e.target.id==='toggle-nav-order'){
+      navOldOrder=!navOldOrder;
+      try{ localStorage.setItem('proto_nav_old', navOldOrder?'1':'0'); }catch(_){}
+      renderNav();
+      var tb=document.getElementById('toggle-nav-order'); if(tb) tb.textContent=navOldOrder?'按新顺序查看':'按旧顺序查看';
+      toast('导航顺序：'+(navOldOrder?'旧顺序（监控/配置/智能/系统）':'新顺序（值守/经营/客户/系统）'),'g');
+    }
+    if(e.target.id==='dismiss-nav-note'){
+      var nn=document.getElementById('nav-reorder-note'); if(nn) nn.style.display='none';
+      try{ localStorage.setItem('proto_nav_note_dismissed','1'); }catch(_){}
+      toast('已隐藏导航重排提示，可在「按旧顺序查看」处随时切换','g');
+    }
+  });
+
+  // 品牌图标（内联 SVG，零依赖，替代 emoji）
+  window.__protoReady=true;
+})();
+</script>
+</body>
+</html>

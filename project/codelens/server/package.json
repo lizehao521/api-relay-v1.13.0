@@ -1,0 +1,62 @@
+{
+  "name": "codelens-server",
+  "version": "2.30.0",
+  "verify": [
+    "typecheck",
+    "test"
+  ],
+  "private": true,
+  "type": "module",
+  "description": "CodeLens programming agent backend: LLM proxy layer (BYOK, zero retention)",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "test": "vitest run && npm run test:krsi",
+    "test:coverage": "vitest run --config vitest.coverage.config.ts --coverage",
+    "check:coverage-floor": "node ../scripts/check-coverage-floor.mjs --package=server",
+    "check:coverage": "npm run test:coverage && npm run check:coverage-floor",
+    "check:file-size": "node ../scripts/check-file-size.mjs",
+    "test:acceptance": "npm run typecheck && npm run test && npm run check:suite-floor && npm run check:task-metadata && npm run check:tool-contract && npm run check:file-size && npm run check:runtime-view",
+    "check:task-metadata": "node ../scripts/check-task-metadata.mjs",
+    "check:tool-contract": "tsx ../scripts/assert-tool-registry-contract.mjs",
+    "check:mutation": "node ../scripts/mutation-probe.mjs",
+    "check:rsi-tick": "node ../scripts/rsi-tick.mjs",
+    "test:krsi": "node scripts/run-krsi-conformance.mjs",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke-real.mjs",
+    "rsi:propose": "tsx scripts/seed-agent-loop.ts 1 --propose",
+    "rsi:code": "tsx scripts/seed-agent-loop.ts 3 --code",
+    "rsi:auto": "tsx scripts/seed-agent-loop.ts 2 --auto",
+    "rsi:verify": "tsx scripts/verify-rsi-ledger.ts",
+    "rsi:migrate-hash": "tsx scripts/migrate-rsi-hash-version.ts",
+    "check:rsi-contract": "tsx scripts/check-rsi-contract.mjs",
+    "check:runtime-view": "node scripts/check-runtime-view.mjs",
+    "check:suite-floor": "node scripts/check-suite-floor.mjs",
+    "check:self-upgrade": "node scripts/check-self-upgrade.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "express": "5.3.0",
+    "helmet": "^8.3.0",
+    "undici": "^8.12.3",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "5.0.5",
+    "supertest": "^7.1.4",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9",
+    "vitest": "^5.0.5"
+  }
+}

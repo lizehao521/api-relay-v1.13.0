@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>api-relay 系统架构图 · 交互版</title>
+  <style>
+    :root { --bg:#f8f9fa; --panel:#ffffff; --border:#d0d7de; --fg:#1f2937; --dim:#6b7280; --accent:#2563eb; }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body { background: var(--bg); color: var(--fg); font: 14px/1.6 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+    #bar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex: none; z-index: 10; }
+    #bar h1 { font-size: 14px; font-weight: 700; }
+    #bar .sp { flex: 1; }
+    #bar button { font: inherit; font-size: 12px; padding: 4px 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+    #bar button:hover { border-color: var(--accent); color: var(--accent); }
+    #bar button.on { background: #eff6ff; border-color: var(--accent); color: var(--accent); }
+    #hint { font-size: 12px; color: var(--dim); }
+
+    #stage { flex: 1; min-height: 0; position: relative; overflow: hidden; cursor: grab; }
+    #stage.drag { cursor: grabbing; }
+    #stage svg { width: 100%; height: 100%; display: block; user-select: none; }
+
+    /* 悬浮高亮：命中流类型的元素提亮，其余淡化 */
+    #stage svg .dimmed { opacity: 0.18; transition: opacity .15s; }
+    #stage svg g[data-flow], #stage svg line[data-flow], #stage svg path[data-flow] { transition: opacity .15s; }
+    #stage svg text { pointer-events: none; }
+    #stage svg g, #stage svg line, #stage svg path, #stage svg rect, #stage svg ellipse { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <h1>api-relay 系统架构 · 交互版</h1>
+    <span class="sp"></span>
+    <span id="hint">滚轮缩放 · 拖拽平移 · 悬浮/点击箭头筛选流类型</span>
+    <button data-f="all" class="on">全部</button>
+    <button data-f="data">数据流</button>
+    <button data-f="ctrl">控制流</button>
+    <button data-f="state">状态持久化</button>
+    <button data-f="meter">度量/轨迹</button>
+    <button id="reset">重置视图</button>
+  </div>
+  <div id="stage"></div>
+
+  <script>
+    const SVG_URL = "architecture.svg";
+
+    /* 数据流类型 → marker 颜色映射（与 SVG 内定义一致） */
+    const FLOW_COLOR = {
+      data:  "#2563eb",
+      ctrl:  "#ea580c",
+      state: "#059669",
+      meter: "#7c3aed",
+    };
+
+    fetch(SVG_URL)
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then((txt) => {
+        const stage = document.getElementById("stage");
+        stage.innerHTML = txt;
+        const svg = stage.querySelector("svg");
+        if (!svg) throw new Error("SVG 根节点未找到");
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+
+        /* 给每条连线标流类型：按 marker-end 引用的颜色归类 */
+        const MARKER2FLOW = {
+          "arr-b": "data", "arr-o": "ctrl", "arr-g": "state", "arr-p": "meter",
+        };
+        const flowEls = [];
+        svg.querySelectorAll("line, path").forEach((el) => {
+          const m = (el.getAttribute("marker-end") || "").match(/#(arr-[\w]+)/);
+          if (!m) return;
+          const flow = MARKER2FLOW[m[1]];
+          if (!flow) return;
+          el.setAttribute("data-flow", flow);
+          flowEls.push(el);
+        });
+
+        /* 箭头旁的流标签文字跟着连线一起淡入淡出：按 fill 颜色匹配 */
+        const FILL2FLOW = {};
+        Object.entries(FLOW_COLOR).forEach(([k, v]) => (FILL2FLOW[v.toLowerCase()] = k));
+        const labelEls = [];
+        svg.querySelectorAll("text").forEach((t) => {
+          const fill = (t.getAttribute("fill") || "").toLowerCase();
+          const cls = t.getAttribute("class") || "";
+          if (FILL2FLOW[fill] && cls.indexOf("t-flow") >= 0) {
+            t.setAttribute("data-flow", FILL2FLOW[fill]);
+            labelEls.push(t);
+          }
+        });
+
+        /* 筛选：点按钮 → 非该类流全部加 .dimmed */
+        function applyFilter(flow) {
+          document.querySelectorAll("#bar button[data-f]").forEach((b) => {
+            b.classList.toggle("on", b.dataset.f === flow);
+          });
+          [...flowEls, ...labelEls].forEach((el) => {
+            el.classList.toggle("dimmed", flow !== "all" && el.getAttribute("data-flow") !== flow);
+          });
+        }
+        document.querySelectorAll("#bar button[data-f]").forEach((b) => {
+          b.addEventListener("click", () => applyFilter(b.dataset.f));
+        });
+
+        /* 悬浮单条流：仅高亮同类 */
+        flowEls.forEach((el) => {
+          el.addEventListener("mouseenter", () => {
+            const f = el.getAttribute("data-flow");
+            [...flowEls, ...labelEls].forEach((o) => {
+              o.classList.toggle("dimmed", o.getAttribute("data-flow") !== f);
+            });
+          });
+          el.addEventListener("mouseleave", () => {
+            const cur = document.querySelector("#bar button.on");
+            applyFilter(cur ? cur.dataset.f : "all");
+          });
+        });
+
+        /* 平移缩放 */
+        let vb = { x: 0, y: 0, w: 1160, h: 900 };
+        const VB0 = { ...vb };
+        function applyVB() {
+          svg.setAttribute("viewBox", vb.x + " " + vb.y + " " + vb.w + " " + vb.h);
+        }
+        applyVB();
+
+        function zoom(cx, cy, factor) {
+          const nw = Math.min(Math.max(vb.w * factor, VB0.w * 0.08), VB0.w * 4);
+          const k = nw / vb.w;
+          vb.x = cx - (cx - vb.x) * k;
+          vb.y = cy - (cy - vb.y) * k;
+          vb.w = nw; vb.h = vb.h * k;
+          applyVB();
+        }
+        stage.addEventListener("wheel", (e) => {
+          e.preventDefault();
+          const r = stage.getBoundingClientRect();
+          const cx = vb.x + ((e.clientX - r.left) / r.width) * vb.w;
+          const cy = vb.y + ((e.clientY - r.top) / r.height) * vb.h;
+          zoom(cx, cy, e.deltaY > 0 ? 1.12 : 0.89);
+        }, { passive: false });
+
+        let drag = null;
+        stage.addEventListener("mousedown", (e) => {
+          if (e.target.closest("line, path, g, rect, ellipse") && e.target.closest("[data-flow]")) return;
+          drag = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y };
+          stage.classList.add("drag");
+        });
+        window.addEventListener("mousemove", (e) => {
+          if (!drag) return;
+          const r = stage.getBoundingClientRect();
+          vb.x = drag.vx - ((e.clientX - drag.x) / r.width) * vb.w;
+          vb.y = drag.vy - ((e.clientY - drag.y) / r.height) * vb.h;
+          applyVB();
+        });
+        window.addEventListener("mouseup", () => { drag = null; stage.classList.remove("drag"); });
+
+        document.getElementById("reset").addEventListener("click", () => {
+          vb = { ...VB0 };
+          applyVB();
+          applyFilter("all");
+        });
+      })
+      .catch((e) => {
+        document.getElementById("stage").innerHTML =
+          '<div style="padding:40px;color:#991b1b;font-size:14px">架构图加载失败：' + e.message +
+          '<br><span style="color:#6b7280;font-size:12px">请确保 architecture.svg 与本文件在同一目录（离线使用，勿单独移动 HTML）。</span></div>';
+      });
+  </script>
+</body>
+</html>

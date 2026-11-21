@@ -1,0 +1,179 @@
+{
+  "schema_version": "s1-tau-1",
+  "domain": "D0",
+  "status": "draft",
+  "baseline_hash": "bc79e113f3960f373e693a75624df0a6a67a3c04471019540fbdcc7dd976d552",
+  "relay": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "source": "relay.core"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "source": "relay.core"
+    },
+    "endpoint": {
+      "type": "string",
+      "required": true,
+      "source": "relay.core"
+    },
+    "method": {
+      "type": "string",
+      "required": true,
+      "source": "relay.core"
+    },
+    "headers": {
+      "type": "object",
+      "required": false,
+      "source": "relay.core"
+    },
+    "auth": {
+      "type": "object",
+      "required": false,
+      "source": "relay.core"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "required": false,
+      "source": "relay.core"
+    },
+    "retries": {
+      "type": "integer",
+      "required": false,
+      "source": "relay.core"
+    },
+    "upstream": {
+      "type": "string",
+      "required": false,
+      "source": "relay.core"
+    },
+    "status": {
+      "type": "string",
+      "required": false,
+      "source": "relay.core"
+    },
+    "circuit_breaker": {
+      "type": "object",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    },
+    "rate_limit": {
+      "type": "object",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    }
+  },
+  "workbench": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "source": "workbench.core"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "source": "workbench.core"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "source": "workbench.core"
+    },
+    "inputs": {
+      "type": "array",
+      "required": false,
+      "source": "workbench.core"
+    },
+    "outputs": {
+      "type": "array",
+      "required": false,
+      "source": "workbench.core"
+    },
+    "steps": {
+      "type": "array",
+      "required": true,
+      "source": "workbench.core"
+    },
+    "permissions": {
+      "type": "array",
+      "required": false,
+      "source": "workbench.core"
+    },
+    "runtime": {
+      "type": "string",
+      "required": false,
+      "source": "workbench.core"
+    },
+    "sandbox_profile": {
+      "type": "string",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    },
+    "resource_budget": {
+      "type": "object",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    }
+  },
+  "combo": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "source": "combo.core"
+    },
+    "name": {
+      "type": "string",
+      "required": true,
+      "source": "combo.core"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "source": "combo.core"
+    },
+    "nodes": {
+      "type": "array",
+      "required": true,
+      "source": "combo.core"
+    },
+    "edges": {
+      "type": "array",
+      "required": false,
+      "source": "combo.core"
+    },
+    "trigger": {
+      "type": "object",
+      "required": false,
+      "source": "combo.core"
+    },
+    "schedule": {
+      "type": "string",
+      "required": false,
+      "source": "combo.core"
+    },
+    "enabled": {
+      "type": "boolean",
+      "required": false,
+      "source": "combo.core"
+    },
+    "policy": {
+      "type": "object",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    },
+    "rollback": {
+      "type": "object",
+      "required": false,
+      "source": "unknown",
+      "x-pending": true
+    }
+  },
+  "S1 verdict": "drafted"
+}

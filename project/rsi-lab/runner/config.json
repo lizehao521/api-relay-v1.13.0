@@ -1,0 +1,29 @@
+{
+  "codelens": {
+    "host": "127.0.0.1",
+    "port": 18791
+  },
+  "llm": {
+    "baseUrl": "http://1.92.92.200:8787/v1",
+    "model": "glm-5.3-flash",
+    "apiKeyFile": "credentials.local.json",
+    "apiKeyPrefix": "LLM_SERVER_API_KEY="
+  },
+  "loop": {
+    "maxRounds": 3,
+    "noImproveRounds": 2,
+    "regressRounds": 2,
+    "minDelta": 0.005,
+    "maxTotalTokens": 400000,
+    "roundTimeoutMs": 420000,
+    "approvalRejectRateStop": 0.5,
+    "failureRounds": 3,
+    "maxTokens": 4096
+  },
+  "paths": {
+    "workbenchServer": "../clone-test/codelens-local-agent-workbench-main/server/dist/app.js",
+    "sandbox": "sandbox",
+    "data": "data",
+    "runs": "runs"
+  }
+}

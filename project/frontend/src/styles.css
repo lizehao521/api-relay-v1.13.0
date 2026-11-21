@@ -1,0 +1,223 @@
+@import "tailwindcss";
+/* 设计 token 单一来源（必须在 legacy/壳层规则之前导入，见 tokens.css 注释） */
+@import "./tokens.css";
+@import "./legacy.css";
+/* 移动端/触控适配（必须在其他规则之前 @import，CSS 规范要求） */
+@import "./mobile.css";
+
+/* ===================== 壳层布局：顶栏 + 侧栏 + 主内容（2026-10 布局改造） =====================
+   结构：#shell 为 CSS Grid 应用壳（不随页面滚动）——
+     ┌─────────── topbar（品牌 · 全局只读状态 · 刷新/退出）───────────┐
+     │ sidenav（分组导航 + 数据窗口控件） │ main（当前页签，唯一滚动区）│
+     └──────────────────────────────────────────────────────────────┘
+   依据：10 个页签 + 8 个控件原挤在一条 header 里，横向溢出、控件与导航混杂；
+   拆成三区后导航纵向分组、控件沉底，主内容获得完整宽度与独立滚动。 */
+
+:root { --nav-w: 232px; --topbar-h: 52px; }
+
+#shell {
+  display: grid;
+  grid-template-areas: "top top" "nav main";
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh; /* 移动端地址栏收缩时仍占满视口 */
+}
+
+/* --- 顶栏：品牌 + 全局只读状态（版本 / 时钟 / 数据新鲜度）+ 刷新与退出 --- */
+#topbar {
+  grid-area: top;
+  position: static; /* 壳层本身不滚动，无需 sticky */
+  z-index: var(--z-topbar);
+  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 88%, transparent); /* 近两年浏览器均支持；不支持则回落上一行 */
+  backdrop-filter: blur(8px);
+  min-height: var(--topbar-h);
+}
+
+#nav-toggle { display: none; }
+
+/* --- 侧栏：分组导航（上） + 数据窗口控件（沉底） --- */
+#sidenav {
+  grid-area: nav;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* 覆盖旧版 header 内联 nav 的 chip 样式（该规则针对裸 nav 元素，会泄漏到侧栏） */
+#sidenav nav {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: var(--s2) var(--s2) var(--s3);
+  background: none;
+  border: none;
+}
+
+.nav-glabel {
+  padding: var(--s3) var(--s2) 4px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.nav-group:first-child .nav-glabel { padding-top: 6px; }
+
+#sidenav nav button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--r1);
+  color: var(--dim);
+  padding: 7px 10px;
+  font-size: var(--fs-body);
+  transition: color var(--t-state) var(--ease-state), background var(--t-state) var(--ease-state);
+}
+#sidenav nav button:hover { color: var(--fg); background: var(--panel2); }
+#sidenav nav button.on {
+  color: var(--fg);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent); /* 左缘高亮条指示当前位置 */
+}
+#sidenav .nv-ic { width: 18px; text-align: center; flex: none; opacity: .85; }
+
+/* 窗口 / 自动刷新 / 间隔：改变所有页签的数据口径，属全局控件 → 沉到侧栏底部与导航分离 */
+.nav-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: var(--s3) var(--s3) var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.nav-foot .sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  color: var(--dim);
+  font-size: var(--fs-sm);
+  min-height: 0;
+  cursor: default;
+}
+.nav-foot select { padding: 3px 6px; font-size: var(--fs-sm); width: auto; }
+
+/* --- 主内容区：唯一滚动容器，内容宽度沿用旧版 1200px 上限居中 --- */
+#shell main {
+  grid-area: main;
+  overflow-y: auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* 移动端导航遮罩（区别于详情抽屉的 #scrim，互不干扰） */
+#navscrim { position: fixed; inset: 0; background: var(--scrim); z-index: var(--z-navscrim); display: none; }
+#navscrim.on { display: block; }
+
+/* --- ≤960px：侧栏收进抽屉，顶栏出汉堡键，保必要状态位 --- */
+@media (max-width: 960px) {
+  #shell {
+    grid-template-areas: "top" "main";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #nav-toggle { display: inline-flex; }
+  #topbar .logo em { display: none; }  /* 窄屏收起副标题，把宽度让给状态 */
+  #topbar .sub.ver,
+  #topbar .sub.clk { display: none; }  /* 版本与手机状态栏时钟让位给「数据新鲜度」 */
+  #topbar .sub.fresh { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sidenav {
+    position: fixed; /* 脱离网格流，覆盖在主内容之上 */
+    top: 0; left: 0; bottom: 0;
+    width: min(272px, 84vw);
+    z-index: var(--z-sidenav);
+    transform: translateX(-100%);
+    transition: transform var(--t-float) var(--ease-float);
+    box-shadow: var(--sh2);
+  }
+  #sidenav.on { transform: none; }
+  /* 桌面端 Esc 关侧栏后，键盘焦点可能还留在已收起的侧栏按钮上——回到主内容开头，避免焦点丢失 */
+  #sidenav.on:focus-within { transition: none; }
+}
+
+/* 尊重「减少动态效果」偏好：全站关闭过渡/动画（含抽屉滑入、hbar/fill 变化、骨架扫光） */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ===================== 亮色主题适配 =====================
+   所有配色已由 tokens.css 的 :root[data-theme="light"] 派生（pre / .secret / .note.* /
+   顶栏毛玻璃 / 旧 header / 骨架扫光），此处不再需要逐条补丁。 */
+
+/* ===================== 排障页 · 常见归因速查折叠区（设计方案 §5 #10 帮助文档） =====================
+   原生 <details> 折叠：零 JS、键盘天然可达、无障碍无需 ARIA。默认收起——速查是低频动作，
+   不与高频的鉴权失败/事件日志抢注意力。 */
+details.cheat {
+  margin-bottom: var(--s3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r2);
+  background: color-mix(in srgb, var(--panel2) 55%, transparent);
+}
+details.cheat > summary {
+  cursor: pointer;
+  padding: 9px var(--s3);
+  font-size: var(--fs-sm);
+  color: var(--dim);
+  user-select: none;
+  list-style: none; /* 自绘三角，替代默认样式 */
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+details.cheat > summary::-webkit-details-marker { display: none; }
+details.cheat > summary::before {
+  content: "▸";
+  font-size: var(--fs-xs);
+  transition: transform var(--t-state) var(--ease-state);
+  flex: none;
+}
+details.cheat[open] > summary::before { transform: rotate(90deg); }
+details.cheat > summary:hover { color: var(--fg); }
+.cheat-body { padding: 2px var(--s3) var(--s3); display: flex; flex-direction: column; gap: 7px; }
+.cheat-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: var(--s2) var(--s3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+  align-items: baseline;
+}
+.cheat-row .cheat-k { color: var(--accent); font-size: var(--fs-xs); word-break: break-all; }
+@media (max-width: 720px) {
+  .cheat-row { grid-template-columns: 1fr; gap: 2px; } /* 窄屏上下堆叠 */
+}
+
+/* 抽屉容器程序化获焦不画焦点框（行内真实控件仍保留 :focus-visible） */
+#drawer:focus, #drawer:focus-visible { outline: none; }
+
+/* ===================== 可点击行 · 撑满整行的真实按钮（5.5 行语义改造 2026-10-19） =====================
+   每行首列放一个 .row-act 按钮，绝对定位撑满整行（tr 为定位上下文）——屏幕阅读器按按钮播报，
+   键盘由原生 button 天然可达，替代原先的 tr role="button"。行内真实按钮（Kb 的编辑/删除、
+   Providers/Ledger 的行内动作）靠 z-index 浮到撑满层之上，仍可正常点击，不被行点击吞掉。 */
+tbody tr { position: relative; }
+tr > td:first-child .row-act {
+  position: absolute; inset: 0; z-index: 0;
+  background: none; border: none; padding: 0; text-align: left; width: 100%; height: 100%;
+  cursor: pointer;
+}
+td .bare, td button:not(.row-act) { position: relative; z-index: 1; }

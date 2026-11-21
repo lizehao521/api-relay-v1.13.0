@@ -1,0 +1,103 @@
+/* ===================== 移动端 / 触控设备适配（2026-10-23） =====================
+ * 审计依据（真机视口 390×844@3 与 360×740@2，逐页签实测）：
+ *   · 水平溢出 = 0px（表格由 section.block / .card 的 overflow-x:auto 兜住）→ 布局本身没坏
+ *   · 真正的问题：**触控目标过小** —— 上游页 29 个、客户 Key 页 19 个、请求账本 10 个
+ *     按钮/链接小于 32×32px，手指难以点中（Apple HIG 建议 ≥44pt，Material ≥48dp）
+ *   · 表单控件字号继承（可能 <16px）→ iOS Safari 聚焦时会把整页放大
+ * 本文件只做「窄屏 / 触控」增量修正：桌面端样式零改动（所有规则都在媒体查询内）。
+ * ========================================================================== */
+
+/* ---- 触控目标放大（粗指针设备，或窄屏）---- */
+@media (pointer: coarse), (max-width: 720px) {
+  button,
+  a,
+  [role="button"],
+  summary {
+    min-height: 40px;
+  }
+
+  /* 无边框小按钮（表格行内动作、上游页「摘除/恢复」、账本行内操作）最难点中 */
+  button.bare {
+    padding: 8px 10px;
+    border-radius: var(--r1);
+  }
+  td button:not(.row-act),
+  td .bare {
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
+  /* 顶栏图标键保持方形且够大 */
+  #topbar button.bare,
+  #nav-toggle {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* 侧栏导航项：手指在列表里滑动时每项都该够高 */
+  #sidenav .nav-group button {
+    min-height: 44px;
+  }
+
+  /* 表单：16px 防 iOS 聚焦缩放；控件加高便于点按 */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 42px;
+    padding: 9px 12px;
+  }
+  input[type="checkbox"] {
+    min-height: 0;
+    width: 20px;
+    height: 20px;
+  }
+  label.sub {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+  }
+}
+
+/* ---- 窄屏排版收紧（≤720px）---- */
+@media (max-width: 720px) {
+  :root {
+    --s3: var(--s3-compact);
+    --s4: var(--s4-compact);
+    --fs-xs: 12px; /* 11px 中文说明在窄屏低于舒适下限，升到 12px（桌面仍 11px） */
+  }
+  h2 { font-size: var(--fs-md); }
+  table { font-size: var(--fs-sm); }
+  th, td { padding: 8px 10px; }
+  .hbar .nm { width: 38%; }        /* 固定 170px 在窄屏会把进度条挤没 */
+  .hbar .vl { width: auto; flex: none; }
+  pre { font-size: var(--fs-xs); max-height: 320px; }
+  #drawer { width: min(440px, 94vw); }
+  section.block { scrollbar-width: thin; }   /* 横滑容器给一点可滚提示 */
+  .card .v { font-size: var(--fs-lg); }      /* 2 列卡片下大数值不再换行 */
+}
+
+/* ---- 超窄屏（≤480px）：卡片与两栏区块单列、顶栏再收紧 ---- */
+@media (max-width: 480px) {
+  .cards { grid-template-columns: 1fr; }
+  .two { grid-template-columns: 1fr; }
+  .card .v { font-size: 20px; }
+  .step { grid-template-columns: 1fr; grid-auto-rows: auto; } /* 步骤条三列降级为单列堆叠 */
+  #topbar { gap: 6px; padding: 8px 10px; }
+  #topbar .logo { font-size: var(--fs-base); }
+  #topbar .sub.fresh { max-width: 40vw; }
+  .cheat-row { grid-template-columns: 1fr; }
+}
+
+/* ---- 刘海屏安全区（配合 index.html 的 viewport-fit=cover）---- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  @media (max-width: 960px) {
+    #shell { padding-bottom: env(safe-area-inset-bottom); }
+    #sidenav { padding-bottom: env(safe-area-inset-bottom); }
+    #topbar {
+      padding-left: max(10px, env(safe-area-inset-left));
+      padding-right: max(10px, env(safe-area-inset-right));
+    }
+  }
+}

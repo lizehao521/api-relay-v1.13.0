@@ -1,0 +1,84 @@
+schema_version: s1-metrics-2
+domain: D0
+status: draft
+baseline_hash: "bc79e113f3960f373e693a75624df0a6a67a3c04471019540fbdcc7dd976d552"
+
+basis:
+  1: measured
+  2: relayed
+  3: estimated
+  4: model_says
+  5: absent
+
+r5_policy:
+  objective: compare_all
+  guard: hard_gate
+  diagnostic: excluded_from_r5
+  note: "objective 指标全部参与 R5 比较；guard 指标作为硬门；diagnostic 指标不进入 R5。"
+
+metrics:
+  - criterion: functional_correctness
+    metric: task_success_rate
+    direction: higher_is_better
+    basis: absent
+    role: objective
+    source: planned_runtime_telemetry
+    sample_size: 0
+
+  - criterion: functional_correctness
+    metric: regression_test_pass_rate
+    direction: higher_is_better
+    basis: absent
+    role: guard
+    source: planned_ci_regression_suite
+    sample_size: 0
+
+  - criterion: performance
+    metric: p95_latency_ms
+    direction: lower_is_better
+    basis: absent
+    role: objective
+    source: planned_load_test_harness
+    sample_size: 0
+
+  - criterion: performance
+    metric: throughput_rps
+    direction: higher_is_better
+    basis: absent
+    role: objective
+    source: planned_load_test_harness
+    sample_size: 0
+
+  - criterion: reliability
+    metric: request_error_rate
+    direction: lower_is_better
+    basis: absent
+    role: objective
+    source: planned_runtime_telemetry
+    sample_size: 0
+
+  - criterion: safety
+    metric: guardrail_violation_rate
+    direction: lower_is_better
+    basis: absent
+    role: guard
+    source: planned_guardrail_evaluator
+    sample_size: 0
+
+  - criterion: observability
+    metric: trace_coverage_ratio
+    direction: higher_is_better
+    basis: absent
+    role: diagnostic
+    source: planned_trace_pipeline
+    sample_size: 0
+
+  - criterion: cost
+    metric: cost_per_request
+    direction: lower_is_better
+    basis: absent
+    role: diagnostic
+    source: planned_cost_export
+    sample_size: 0
+
+S1 verdict: drafted

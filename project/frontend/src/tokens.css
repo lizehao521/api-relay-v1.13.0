@@ -1,0 +1,89 @@
+/* ===================== 设计 Token（单一来源） =====================
+   约定：
+   - 每个语义 token 在 :root（暗色）与 :root[data-theme=light]（亮色）各有一份，键名一一对应；
+     消费方（legacy.css / styles.css / mobile.css / 视图内联 var()）只引用不定义。
+   - 既有 27 个 token（颜色 13 / 间距 5 / 圆角 3 / 字体 1 / 阴影 2 / 壳 2 / 焦点 1）原值迁移，不重命名
+     —— var() 无回退值时不报错、直接静默失效，重命名有风险。
+   - 字阶：4 级主阶（--fs-xs 辅助 / --fs-base 正文 / --fs-md 模块标题 / --fs-lg 页面标题）+ 扩展位
+     （--fs-2xs 图表轴 / --fs-body 次要正文 / --fs-sm 次要文字 / --fs-xl 大数值）。
+   - 间距：4px 基数递增序列；窄屏档（--s3-compact/--s4-compact）在下方 :root 内定义，由 mobile.css 引用。 */
+
+:root {
+  /* ---- 基础色（既有，原值） ---- */
+  --bg:#0d1117;--panel:#161b22;--panel2:#1b212a;--border:#30363d;--border2:#222831;
+  --fg:#e6edf3;--dim:#8b949e;--accent:#58a6ff;--ok:#3fb950;--warn:#d29922;--err:#f85149;--pur:#bc8cff;
+  --chip:#21262d;--focus:rgba(88,166,255,.45);
+  /* ---- 间距（4px 基数序列，--s5 由 22→20 收敛） ---- */
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;
+  /* ---- 圆角 ---- */
+  --r1:6px;--r2:10px;--r3:14px;
+  /* ---- 字体 ---- */
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  /* ---- 阴影 ---- */
+  --sh1:0 1px 2px rgba(0,0,0,.35);--sh2:0 10px 30px rgba(0,0,0,.45);
+  /* ---- 字阶 / 行高 / 字重 ---- */
+  --fs-2xs:10px;--fs-xs:11px;--fs-sm:12px;--fs-body:13px;--fs-base:14px;
+  --fs-md:15px;--fs-lg:17px;--fs-xl:22px;
+  --lh-tight:1.3;--lh-snug:1.7;--lh-base:1.6;--lh-loose:1.8;
+  --fw-med:500;--fw-semi:600;--fw-bold:700;
+  /* ---- 动效（三档时长 + 两档缓动） ---- */
+  --t-state:.12s;--t-move:.18s;--t-float:.22s;
+  --ease-state:cubic-bezier(.4,0,.2,1);--ease-float:cubic-bezier(.22,.61,.36,1);
+  /* ---- 层级 ---- */
+  --z-topbar:30;--z-scrim:55;--z-drawer:60;--z-navscrim:65;--z-sidenav:70;--z-login:80;--z-toast:90;
+  /* ---- 新增语义色（把 legacy.css 散落硬编码 token 化） ---- */
+  --accent-solid:#1f6feb;--accent-solid-hover:#2a7ff5;   /* 实心主色按钮基底/悬停 */
+  --on-accent:#ffffff;                                   /* 深色按钮上的文字 */
+  --danger-fg:#ff9d96;--danger-bg:#3d1d1b;--danger-border:#6e2b28;
+  --line-hover:#3d444d;                                  /* input:hover / .card:hover 边框 */
+  --nav-hover-bg:#2a313a;                                /* nav button:hover 背景 */
+  --scrollbar:#30363d;--scrollbar-hover:#3d444d;
+  --code-bg:#0b0f14;--secret-bg:#0b0f14;
+  --scrim:rgba(0,0,0,.55);
+  --login-glow:#16273d;
+  --chart-accent-2:#1f6feb;--chart-err-2:#8b1f1a;        /* 柱状图渐变终点 */
+  --panel-translucent:rgba(22,27,34,.86);                /* 顶栏 / 旧 header 毛玻璃底色 */
+  --skel-glow:rgba(255,255,255,.06);
+  --note-warn-border:#5c4a12;--note-warn-bg:#211c0d;
+  --note-bad-border:#5c2a12;--note-bad-bg:#1f0f0d;
+  --chip-b-border:#1f6feb;--chip-g-border:#2b6a35;--chip-y-border:#5c4a12;--chip-r-border:#6e2b28;
+  --chip-b-bg:rgba(31,111,235,.12);--chip-g-bg:rgba(63,185,80,.12);
+  --chip-y-bg:rgba(210,153,34,.12);--chip-r-bg:rgba(248,81,73,.12);
+}
+
+:root[data-theme="light"] {
+  /* ---- 基础色（既有，原值） ---- */
+  --bg:#f6f8fa;--panel:#ffffff;--panel2:#f0f2f5;--border:#d0d7de;--border2:#e5e8eb;
+  --fg:#1f2328;--dim:#59636e;--accent:#0969da;--ok:#1a7f37;--warn:#9a6700;--err:#d1242f;--pur:#8250df;
+  --chip:#eaeef2;--focus:rgba(9,105,218,.35);
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;
+  --r1:6px;--r2:10px;--r3:14px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh1:0 1px 2px rgba(0,0,0,.08);--sh2:0 10px 30px rgba(0,0,0,.12);
+  --fs-2xs:10px;--fs-xs:11px;--fs-sm:12px;--fs-body:13px;--fs-base:14px;
+  --fs-md:15px;--fs-lg:17px;--fs-xl:22px;
+  --lh-tight:1.3;--lh-snug:1.7;--lh-base:1.6;--lh-loose:1.8;
+  --fw-med:500;--fw-semi:600;--fw-bold:700;
+  --t-state:.12s;--t-move:.18s;--t-float:.22s;
+  --ease-state:cubic-bezier(.4,0,.2,1);--ease-float:cubic-bezier(.22,.61,.36,1);
+  --z-topbar:30;--z-scrim:55;--z-drawer:60;--z-navscrim:65;--z-sidenav:70;--z-login:80;--z-toast:90;
+  --accent-solid:#0969da;--accent-solid-hover:#0860c4;--on-accent:#ffffff;
+  --danger-fg:#cf222e;--danger-bg:#ffebe9;--danger-border:#ff8080;   /* 亮色下深红文字，对比度 ≥4.5:1 */
+  --line-hover:#afb8c1;
+  --nav-hover-bg:#eef1f4;
+  --scrollbar:#afb8c1;--scrollbar-hover:#8892a0;
+  --code-bg:#f6f8fa;--secret-bg:#fffdf2;
+  --scrim:rgba(0,0,0,.35);
+  --login-glow:#dbeafe;
+  --chart-accent-2:#0969da;--chart-err-2:#cf222e;
+  --panel-translucent:rgba(255,255,255,.86);
+  --skel-glow:rgba(0,0,0,.05);
+  --note-warn-border:#d4a72c;--note-warn-bg:#fff8e6;
+  --note-bad-border:#ff8080;--note-bad-bg:#fff1f0;
+  --chip-b-border:#0969da;--chip-g-border:#1a7f37;--chip-y-border:#9a6700;--chip-r-border:#cf222e;
+  --chip-b-bg:rgba(9,105,218,.10);--chip-g-bg:rgba(26,127,55,.10);
+  --chip-y-bg:rgba(154,103,0,.10);--chip-r-bg:rgba(207,34,46,.10);
+}
+
+/* ---- 窄屏刻度（仍由 4px 基数派生，mobile.css 在 ≤720px 时引用） ---- */
+:root { --s3-compact:10px; --s4-compact:14px; }

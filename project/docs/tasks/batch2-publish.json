@@ -1,0 +1,32 @@
+[
+  {
+    "key": "starter_comment_fix",
+    "content": "starter.ts 注释失准修复（原留存项）：修正 src/core/starter.ts L7/L191 两处「两个 key 槽」注释为与实现一致（默认 1 槽、--env2 双槽），同族失准注释一并修复；重建 dist；npm test 全过。任务书：docs/tasks/task-6-starter-comment-fix.md（先读任务书再动手）",
+    "target_files": ["src/core/starter.ts"]
+  },
+  {
+    "key": "sdk_cleartimeout",
+    "content": "SDK autoRetry() 抛错路径 clearTimeout 优化（审查项 S1）：统一 timer 清理覆盖所有路径，契约不变，如需可新增验证测试。任务书：docs/tasks/task-7-sdk-cleartimeout.md（先读任务书再动手）",
+    "target_files": ["src/client/auto-retry.ts"]
+  },
+  {
+    "key": "doc_consistency",
+    "content": "全仓文档一致性清理：「两个 key 槽」残留处置（DECISIONS.md 加勘误注、其余修正）、README 测试数量声明统一为实际数字（L15/L230/L552）、--env2 表述一致性抽查。任务书：docs/tasks/task-8-doc-consistency.md（先读任务书再动手；注意任务书「前置依赖」节：需 #6/#7 完成后的最终测试数字）",
+    "target_files": ["README.md", "DECISIONS.md"]
+  },
+  {
+    "key": "batch_review",
+    "content": "收尾批次独立复审：审查 #6/#7 改动最小且契约不变、dist 同步、文档复核、npm test 全量回归，给出 BATCH VERDICT。任务书：docs/tasks/task-9-batch-review.md（先读任务书再动手；需 #6/#7/#8 完成后执行）",
+    "target_files": []
+  },
+  {
+    "key": "handover_doc",
+    "content": "批次收尾报告：新建 docs/HANDOVER-20261019-followup.md 沉淀 #6–#9 结果、更新方案 §10.2 状态、标记任务书完成状态。任务书：docs/tasks/task-10-handover.md（先读任务书再动手；需 #9 给出 BATCH VERDICT 后执行）",
+    "target_files": ["docs/HANDOVER-20261019-followup.md", "docs/对接方案-模型厂商与用户.md"]
+  },
+  {
+    "key": "final_audit",
+    "content": "批次终审与放行：核对任务闭环、磁盘终审（starter/SDK/README/HANDOVER）、亲自跑 npm test、给出 FINAL BATCH VERDICT。任务书：docs/tasks/task-11-final-audit.md（先读任务书再动手；需 #10 完成后执行）",
+    "target_files": []
+  }
+]

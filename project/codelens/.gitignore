@@ -1,0 +1,122 @@
+node_modules/
+dist/
+dist-client/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+!.env.*.example
+.DS_Store
+.vscode/
+.idea/
+
+# 密钥 / 证书 / 本地凭据（任何层级）
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.secret
+id_rsa
+id_rsa.pub
+
+# 本地运行时数据（审批密钥、SQLite 库、沙箱工作区、checkpoint 快照）
+server/data/
+server/sandbox/
+server/workspace/
+.codelens/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# krsi 编译产物（Go 源码在 server/krsi/，构建：go build -C krsi -o krsi.exe .）
+server/krsi/krsi.exe
+server/krsi/krsi
+
+# 构建产物与中间件（保留 desktop/build 的打包资源：icon.ico/png、installer.nsh）
+build/
+out/
+!desktop/build/
+!desktop/build/**
+*.tmp
+*.tsbuildinfo
+.trae/
+.cache/
+
+# 本地 SQLite 运行时数据（含 e2e/smoke 测试残留）
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# 桌面端打包废物目录（历史解包残留，体积大；当前输出目录已改为 C:/codelens-build/release）
+desktop/release/
+desktop/release-final/
+desktop/release-final-*/
+desktop/release2/
+
+# 根目录误放的安装包副本（正式产物在 C:/codelens-build/release）
+CodeLens-Setup-*.exe
+
+# 桌面端离线镜像与打包中间产物（体积大，构建时生成）
+desktop/.electron-mirror/
+desktop/server-bundle.cjs
+
+# WorkBuddy 会话工作区与元数据（非项目源码）
+.workbuddy/
+*.genie
+
+# e2e / drill 测试的沙箱工作目录（每次运行留一个 drill-r2-* / e2e-* 目录，
+# 内含测试写的临时文件；不属于源码，且会随运行次数累积）
+server/sandbox/
+
+# 默认工作目录（Agent 的沙箱根，不是源码）
+server/workspace/
+
+# 工具结果落盘（executor 的 .artifacts/<id>.json，运行时产物）
+.artifacts/
+server/.artifacts/
+
+# 审计/性能/依赖脚本生成的中间产物（基线数据、统计 JSON，非源码）
+.audit_*.json
+.dep_*.json
+.perf-*.json
+# 带教对话与稳定性探针的临时产物（不属源码）
+server/scratch/_mentor*
+server/scratch/_stability-probe.*
+server/scratch/_db-consistency.mjs
+server/scratch/_list-models.mjs
+# 布局实测截图：hash 名的三张是既有取证产物（继续跟踪），layout-* 可重跑，不进版本控制
+.screenshots/layout-*.png
+
+# 人所有目录重锚时 cp 出来的改前留档（还原版），不是要发布的基线
+.self-upgrade/*.bak-*
+
+# 自升级循环运行态产物：checkpoint 源码副本 + diag/sse/judge 调试日志，可重跑，不进版本控制
+# （判据结论与账本记录另存于 .self-upgrade 顶层可验证文件，不在此目录）
+.self-upgrade/loop/
+
+# 本机磁盘巡检脚本与两份交付包（产物，不是源码）
+_disk_scan.ps1
+delivery-scope-guardian.zip
+iteration-governance.zip
+
+# 本轮探针与外来技能包的临时落盘
+server/scratch/_patch-env.mjs
+server/scratch/live7.mjs
+server/scratch/dsh-index.json
+server/scratch/dsh-pkg-1/
+
+# Playwright 浏览器 e2e 产物（test-results / report 可重跑）
+client/test-results/
+client/playwright-report/
+
+# 并行会话留在工作区根的一次性探针（45 份，正文只有 "probe N"）与两份本机草稿：
+# .arts/ 是外部工具的 settings.json（clawMode），acct-data/ 只有一行 "acct" 笔记。
+# 三条都锚在根（前导斜杠），不用宽 glob：server/ 下 probe-rubric.ts、
+# probe-fix-hint.test.ts 等 7 个受跟踪同名族件必须继续被看见。
+/probe-*.txt
+/.arts/
+/acct-data/

@@ -1,0 +1,34 @@
+{
+  "name": "api-relay",
+  "version": "1.13.0",
+  "private": true,
+  "description": "智能体基础设施层：OpenAI 兼容的模型 API 聚合中转站 + 传话层工程降损（P2/P3/P8）——错误可执行 · 数据可信 · 损耗可度量",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && npm run build:ui",
+    "config:build": "node scripts/build-config.mjs",
+    "build:ui": "npm --prefix frontend run build",
+    "start": "node --disable-warning=ExperimentalWarning dist/cli.js serve",
+    "dev": "tsc -p tsconfig.json && node --disable-warning=ExperimentalWarning dist/cli.js serve",
+    "mock": "node --disable-warning=ExperimentalWarning dist/cli.js mock",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --disable-warning=ExperimentalWarning --test \"dist/test/*.test.js\" \"dist/client/*.test.js\"",
+    "check": "node --disable-warning=ExperimentalWarning dist/cli.js check && node scripts/check-generated.mjs",
+    "check:generated": "node scripts/check-generated.mjs",
+    "report": "node --disable-warning=ExperimentalWarning dist/cli.js report",
+    "e2e": "node --disable-warning=ExperimentalWarning --test \"dist/test/e2e.test.js\"",
+    "demo": "tsc -p tsconfig.json && node --disable-warning=ExperimentalWarning dist/cli.js demo",
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "bench": "node scripts/bench.mjs",
+    "test:ui": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test scripts/ui-logic.test.ts",
+    "smoke:demo": "node --disable-warning=ExperimentalWarning scripts/smoke-demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "rsi-lab",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "受控 RSI 实验场：runner / 判据 / 看板",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "loop": "node runner/run-loop.mjs",
+    "dashboard": "node dashboard/server.mjs"
+  }
+}

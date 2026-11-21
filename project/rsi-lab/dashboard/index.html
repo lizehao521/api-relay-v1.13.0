@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RSI Lab · 受控自我改进看板</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔄%3C/text%3E%3C/svg%3E" />
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background: #f5f7fa; color: #1f2937; }
+  header { background: #111827; color: #fff; padding: 16px 24px; }
+  header h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.5px; }
+  header p { margin: 4px 0 0; opacity: 0.75; font-size: 0.9rem; }
+  main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin: 24px 0 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .card h3 { margin: 0 0 12px; font-size: 0.95rem; color: #374151; }
+  .kpi { font-size: 1.75rem; font-weight: 700; color: #111827; }
+  .kpi small { font-size: 0.75rem; color: #6b7280; font-weight: 400; display: block; margin-top: 2px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.4px; vertical-align: middle; }
+  .tag-accept { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+  .tag-revert { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  .tag-timeout { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .tag-milestone { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+  th { background: #f9fafb; color: #374151; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.4px; }
+  tr:hover { background: #fafafa; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85rem; }
+  .badge-ok { color: #15803d; font-weight: 700; }
+  .badge-no { color: #b91c1c; font-weight: 700; }
+  .muted { color: #6b7280; font-size: 0.85rem; }
+  .tooltip { cursor: help; border-bottom: 1px dotted #9ca3af; }
+  .refresh { margin-top: 12px; color: #2563eb; text-decoration: none; font-size: 0.9rem; }
+  .hidden { display: none; }
+  .row-label { font-weight: 600; color: #374151; }
+  .collapse-btn { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.85rem; }
+  .collapse-btn:hover { background: #f3f4f6; }
+  .gen-pill { font-weight: 700; color: #2563eb; }
+</style>
+</head>
+<body>
+<header>
+  <h1>RSI Lab · 受控自我改进看板</h1>
+  <p id="metaLine">载入中…</p>
+</header>
+<main>
+  <section>
+    <h2>关键指标</h2>
+    <div class="grid" id="kpiGrid"></div>
+  </section>
+
+  <section>
+    <h2>对账账本（R1–R6 两代对账 · 哈希链）</h2>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span class="row-label">账本链 Verify：<span id="ledgerVerify" class="mono">–</span></span>
+        <span id="ledgerCount" class="mono muted">0 条</span>
+      </div>
+      <table id="ledgerTable">
+        <thead><tr><th>轮次</th><th>判据代</th><th>对账判定</th><th>分数</th><th>拦截/原因</th><th>时间</th></tr></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>轮次明细</h2>
+    <div class="grid" id="roundGrid"></div>
+  </section>
+
+  <section class="hidden" id="detailSection">
+    <h2>轮次 <span id="detailRound">–</span> 详情</h2>
+    <button class="collapse-btn" onclick="toggleDetail()">收起详情</button>
+    <pre id="detailRaw" style="background:#f3f4f6;padding:12px;border-radius:8px;overflow:auto;font-size:0.8rem;max-height:400px;"></pre>
+  </section>
+
+  <p class="refresh"><a href="#" onclick="refresh(); return false;">刷新</a> · 数据来自本地 RSI 循环（/api/summary、/api/ledger、/api/round?round=N）</p>
+</main>
+<script>
+  async function refresh() {
+    const [summary, ledger] = await Promise.all([
+      fetch('/api/summary').then(r => r.json()),
+      fetch('/api/ledger').then(r => r.json()),
+    ]);
+    renderMeta(summary);
+    renderKpi(summary);
+    renderLedger(ledger);
+    renderRounds(summary);
+  }
+
+  function renderMeta(summary) {
+    const el = document.getElementById('metaLine');
+    const parts = [];
+    if (summary.generatedAt) parts.push('生成于 ' + summary.generatedAt);
+    const st = summary.state || {};
+    if (st.bestScore != null) parts.push('best=' + st.bestScore + ' @ ' + (st.bestCommit || '-').slice(0, 7));
+    if (st.totalTokens != null) parts.push('tokens=' + st.totalTokens);
+    el.textContent = parts.join('   ·   ');
+  }
+
+  function renderKpi(s) {
+    const st = s.state || {};
+    const grid = document.getElementById('kpiGrid');
+    const items = [
+      { label: '当前判据代', value: s.lastGeneration || 0, unit: '代' },
+      { label: '最佳分数', value: st.bestScore != null ? st.bestScore : '–', unit: '' },
+      { label: '对账账本', value: s.ledger ? s.ledger.count : 0, unit: '条', sub: s.ledger && s.ledger.verify ? (s.ledger.verify.ok ? '链验证通过' : '链验证未通过') : '' },
+      { label: '里程碑', value: (st.milestones || []).length, unit: '个', sub: (st.milestones || []).join('、') || '无' },
+      { label: '最后轮次', value: s.lastRound || 0, unit: '轮' },
+      { label: '最后判定', value: s.lastVerdict || '–', unit: '' },
+    ];
+    grid.innerHTML = items.map(it => `
+      <div class="card">
+        <h3>${it.label}</h3>
+        <div class="kpi">${it.value}<small>${it.unit}</small></div>
+        ${it.sub ? `<div class="muted">${it.sub}</div>` : ''}
+      </div>`).join('');
+  }
+
+  function tagHtml(verdict, reason) {
+    const map = {
+      accept: ['tag-accept', '对账通过'],
+      improved: ['tag-accept', '对账通过'],
+      revert: ['tag-revert', '对账拒绝'],
+      reverted: ['tag-revert', '对账拒绝'],
+      timeout: ['tag-timeout', '轮次超时'],
+      milestone_failure: ['tag-milestone', '里程碑失败'],
+    };
+    const [cls, label] = map[verdict] || ['tag-timeout', String(verdict || '未知')];
+    const tip = reason ? ` title="${escapeHtml(String(reason))}"` : '';
+    return `<span class="tag ${cls}"${tip}>${label}</span>`;
+  }
+
+  function renderLedger(ledger) {
+    const v = document.getElementById('ledgerVerify');
+    const c = document.getElementById('ledgerCount');
+    const body = document.getElementById('ledgerBody');
+    if (ledger.verify && ledger.verify.ok) { v.className = 'badge-ok'; v.textContent = '链验证通过 (' + ledger.verify.count + ' 条)'; }
+    else { v.className = 'badge-no'; v.textContent = '链验证未通过'; }
+    c.textContent = (ledger.count || 0) + ' 条';
+    body.innerHTML = (ledger.list || []).map(e => `
+      <tr>
+        <td class="mono">${e.round ?? '–'}</td>
+        <td><span class="gen-pill">g${e.generation ?? '–'}</span></td>
+        <td>${tagHtml(e.verdict, e.reason)}</td>
+        <td class="mono">${e.score != null ? Number(e.score).toFixed(3) : '–'}</td>
+        <td><span class="muted tooltip">${escapeHtml(e.reason || '–')}</span></td>
+        <td class="mono muted">${e.ts ?? '–'}</td>
+      </tr>`).join('');
+  }
+
+  function renderRounds(summary) {
+    const grid = document.getElementById('roundGrid');
+    const rounds = summary.rounds || [];
+    grid.innerHTML = rounds.map(r => `
+      <div class="card">
+        <h3>第 ${r.round} 轮</h3>
+        <div class="kpi">${r.score != null ? Number(r.score).toFixed(3) : '–'}</div>
+        <div class="muted">${r.verdict ? tagHtml(r.verdict, r.failure || '') : '–'}</div>
+        <div class="muted">判据代 g${r.generation ?? '–'} · ${r.dirty ? '脏' : '干净'}</div>
+        <button class="collapse-btn" onclick="openDetail(${r.round})">查看详情</button>
+      </div>`).join('');
+  }
+
+  async function openDetail(round) {
+    const d = await fetch('/api/round?round=' + round).then(r => r.json());
+    const el = document.getElementById('detailSection');
+    el.classList.remove('hidden');
+    document.getElementById('detailRound').textContent = round;
+    document.getElementById('detailRaw').textContent = JSON.stringify(d, null, 1);
+    window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+  }
+  function toggleDetail() {
+    document.getElementById('detailSection').classList.add('hidden');
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+
+  refresh();
+  setInterval(refresh, 15000);
+</script>
+</body>
+</html>

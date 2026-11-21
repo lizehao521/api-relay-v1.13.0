@@ -1,0 +1,890 @@
+/**
+ * HTTP 传输层（node:http，零依赖）。
+ *
+ * 职责仅限于传输：解析请求、注入 requestId、把 EngineResult 写成 HTTP 响应、
+ * 处理客户端断开与优雅退出。所有业务语义都在 Engine 内。
+ *
+ * 流式响应额外做两件事：
+ *   1. 逐字节原样转发上游 SSE，不做任何重新分帧（保护 SSE 语义）。
+ *   2. 统计转发字节数，在流结束时调用 onEnd 写入度量与轨迹。
+ */
+
+import http from 'node:http';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import type { AddressInfo } from 'node:net';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Engine } from './engine.js';
+import {
+  anthropicToOpenAI,
+  openAIToAnthropicMessage,
+  geminiToOpenAI,
+  openAIToGemini,
+  UnsupportedFieldError,
+} from './adapters.js';
+import type { EngineResult, EngineStream } from './protocol.js';
+import type { RelayConfig } from '../core/types.js';
+import { Logger } from '../core/logger.js';
+import { RELAY_VERSION } from '../core/version.js';
+import { shortId } from '../util/index.js';
+import type { AdminApi } from '../admin/api.js';
+import { renderJudgePage } from './judge-page.js';
+
+export interface ServerDeps {
+  config: RelayConfig;
+  engine: Engine;
+  admin: AdminApi;
+  logger: Logger;
+  /** 知识库（垂直 Agent 能力；未启用时 undefined） */
+  kb?: import('../kb/store.js').KbStore | undefined;
+  /** key 注册表（用于 KB allowedKeys 校验） */
+  keys?: import('./keys.js').KeyRegistry | undefined;
+}
+
+/** 评委演示视频（相对 cwd；不存在时页面显示待上传占位） */
+const JUDGE_VIDEO_FILE = 'data/judge-video.mp4';
+/** 架构图（相对 cwd，用于评委页内联展示） */
+const JUDGE_ARCH_FILE = 'architecture.svg';
+
+export class RelayServer {
+  private readonly server: http.Server;
+  private readonly inflight = new Set<AbortController>();
+  private startedAt = Date.now();
+  private requestCount = 0;
+
+  constructor(private readonly deps: ServerDeps) {
+    this.server = http.createServer((req, res) => {
+      void this.onRequest(req, res).catch((err) => {
+        this.deps.logger.error('http.unhandled', { error: err instanceof Error ? err.message : String(err) });
+        if (!res.headersSent) {
+          res.writeHead(500, { 'content-type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: {
+                message: '中转站内部错误',
+                type: 'relay_internal_error',
+                param: null,
+                code: 'relay_internal_error',
+                relay_attribution: {
+                  failure_reason: 'relay_internal_error',
+                  suggested_next: { action: 'retry_same' },
+                  recoverable: true,
+                  upstream: 'relay',
+                  confidence: 0.5,
+                },
+              },
+            }),
+          );
+        } else {
+          res.destroy();
+        }
+      });
+    });
+    this.server.keepAliveTimeout = 65_000;
+    this.server.headersTimeout = 70_000;
+  }
+
+  async listen(): Promise<{ host: string; port: number; url: string }> {
+    const { host, port } = this.deps.config.server;
+    await new Promise<void>((resolve, reject) => {
+      this.server.once('error', reject);
+      this.server.listen(port, host, () => {
+        this.server.removeListener('error', reject);
+        resolve();
+      });
+    });
+    const addr = this.server.address() as AddressInfo;
+    const actualHost = addr.address === '::' || addr.address === '0.0.0.0' ? '127.0.0.1' : addr.address;
+    return { host: addr.address, port: addr.port, url: `http://${actualHost}:${addr.port}` };
+  }
+
+  async close(graceMs = 5_000): Promise<void> {
+    for (const c of this.inflight) c.abort();
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        this.server.closeAllConnections?.();
+        resolve();
+      }, graceMs);
+      this.server.close(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  get uptimeMs(): number {
+    return Date.now() - this.startedAt;
+  }
+
+  get stats(): { requestCount: number; inflight: number; uptimeMs: number } {
+    return { requestCount: this.requestCount, inflight: this.inflight.size, uptimeMs: this.uptimeMs };
+  }
+
+  /* ------------------------------------------------------------------ */
+
+  private async onRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const requestId = `req_${shortId(16)}`;
+    this.requestCount++;
+    const startedAt = Date.now();
+    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    const headers = normalizeHeaders(req.headers);
+
+    this.setCommonHeaders(res, requestId);
+
+    /* ---------- 无鉴权的探活与管理入口 ---------- */
+    if (req.method === 'GET' && (path === '/healthz' || path === '/health')) {
+      const payload = {
+        status: 'ok',
+        version: RELAY_VERSION,
+        uptimeMs: this.uptimeMs,
+        requestCount: this.requestCount,
+        inflight: this.inflight.size,
+        ...this.deps.admin.health(),
+      };
+      return this.writeJson(res, 200, JSON.stringify(payload));
+    }
+
+    if (path === '/') {
+      return this.writeJson(
+        res,
+        200,
+        JSON.stringify({
+          name: 'api-relay',
+          version: RELAY_VERSION,
+          description: '智能体基础设施层：OpenAI 兼容的模型 API 聚合中转站，内嵌传话层工程降损（P2 预检 / P3 失败归因 / P8 损耗度量）——错误可执行 · 数据可信 · 损耗可度量',
+          endpoints: {
+            chat: 'POST /v1/chat/completions',
+            embeddings: 'POST /v1/embeddings',
+            completions: 'POST /v1/completions',
+            models: 'GET /v1/models',
+            health: 'GET /healthz',
+            admin: 'GET /admin/api/overview（需 X-Admin-Token）',
+            explain: 'GET /v1/attribution/catalog（错误归因目录，便于客户端预先处理）',
+          },
+          loss_reduction: {
+            precheck: 'P2 调用前意图预检（fail-open）',
+            attribution: 'P3 失败归因卡片（不改写成功响应）',
+            meter: 'P8 损耗量化基线',
+            trace: 'P5 请求级轨迹（GET /admin/api/traces）',
+          },
+        }),
+      );
+    }
+
+    /* ---------- 评委展示页（对外公开） ----------
+     * GET /judge            作品展示页（介绍/能力/架构图/视频/看板入口）
+     * GET /judge/video.mp4  演示视频（支持 Range，可拖动进度）
+     * 页面与视频均不含凭据：看板入口只提示"用只读账号登录"。
+     */
+    if (req.method === 'GET' && (path === '/judge' || path === '/judge/')) {
+      let version = RELAY_VERSION;
+      try {
+        const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version?: string };
+        if (pkg.version) version = 'v' + pkg.version;
+      } catch { /* 读不到就用兜底版本号，不影响页面 */ }
+      const html = renderJudgePage({
+        version,
+        hasVideo: existsSync(JUDGE_VIDEO_FILE),
+        architectureSvg: existsSync(JUDGE_ARCH_FILE) ? readFileSync(JUDGE_ARCH_FILE, 'utf8') : undefined,
+      });
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.setHeader('cache-control', 'no-cache');
+      res.writeHead(200);
+      res.end(html);
+      return;
+    }
+    if (req.method === 'GET' && path === '/judge/video.mp4') {
+      return this.serveJudgeVideo(req, res);
+    }
+
+    if (path.startsWith('/admin')) {
+      const handled = await this.deps.admin.handle(req, res, url, headers, requestId);
+      if (handled) return;
+      return this.writeJson(res, 404, JSON.stringify({ error: { message: `未知管理接口 ${path}`, type: 'not_found_error', code: 'not_found' } }));
+    }
+
+    /* ---------- 本机只读端点（供本机面板/插件读取，默认不对外） ----------
+     * 存在理由：本机面板与 DSH 插件需要读用量，而插件的 HTTP 客户端（web.fetch）
+     * 不能带自定义 header，所以没法用带令牌的管理接口。
+     *
+     * **安全边界（重要）**：这两个端点会暴露用量计数、请求轨迹（含上游错误文案）、
+     * key 列表与上游信息。所以默认**只允许来自 127.0.0.1/::1 的请求**——
+     * 一旦把网关绑到 0.0.0.0 对外提供服务，局域网/公网访问者仍然读不到这些数据。
+     *
+     * 确实需要远程读（例如面板跑在另一台机器）时，显式打开：
+     *   server.publicQuotaRemote: true
+     * 并自行用反代做 IP 白名单——这两个端点没有别的权限校验。
+     */
+    if (req.method === 'GET' && (path === '/v1/quota' || path === '/v1/panel')) {
+      if (this.deps.config.server.publicQuota === false) {
+        return this.writeJson(res, 404, JSON.stringify({ error: { message: '该端点已关闭', type: 'not_found_error', code: 'disabled' } }));
+      }
+      const remote = req.socket.remoteAddress ?? '';
+      const isLoopback = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+      // C-04 修复：网关被**同机**隧道/反代前置时（cloudflared / Tailscale Funnel 指向
+      // 127.0.0.1:8787），公网请求的 remoteAddress 也是回环地址 —— “本机”不再等于可信，
+      // 下面这道闸门会把它整段放行（实测拓扑见 docs/DEPLOYMENT.md）。
+      // 部署者声明 server.behindProxy: true 后，本闸门只认 publicQuotaRemote。
+      const trustLoopback = isLoopback && this.deps.config.server.behindProxy !== true;
+      if (!trustLoopback && this.deps.config.server.publicQuotaRemote !== true) {
+        return this.writeJson(res, 403, JSON.stringify({
+          error: {
+            message:
+              '该端点暴露用量与轨迹，默认只允许**直连本机**读取。若网关被同机隧道/反代前置，' +
+              '请显式设 server.publicQuotaRemote: true 并在反代侧做 IP 白名单，同时务必设置 server.adminToken。',
+            type: 'permission_error',
+            code: 'local_only',
+          },
+        }));
+      }
+      return this.writeJson(res, 200, JSON.stringify(path === '/v1/quota' ? this.deps.admin.publicQuota() : this.deps.admin.publicPanel(url)));
+    }
+
+    /* ---------- 静态的错误归因目录（客户端可预先拉取） ---------- */
+    if (req.method === 'GET' && path === '/v1/attribution/catalog') {
+      return this.writeJson(res, 200, JSON.stringify(this.deps.admin.attributionCatalog()));
+    }
+
+    if (req.method === 'GET' && path === '/v1/models') {
+      // 带上有效 key 时按该 key 的白名单过滤：清单必须只说这个 key 能用的东西，
+      // 否则客户会选中调不了的模型、被 403 挡回，误以为"key 坏了"（实测踩过）。
+      const models = this.deps.admin.modelList(req.headers.authorization);
+      return this.writeJson(res, 200, JSON.stringify({ object: 'list', data: models }));
+    }
+
+    /* ---------- 知识库垂直 Agent 端点 /v1/kb/{id}/ask ---------- */
+    // 形如 /v1/kb/{kbId}/ask：带 key 鉴权，检索该 KB 后把命中块注入 system 消息，
+    // 再以改写的请求体转发到 /v1/chat/completions（走原有引擎全链路：鉴权/预检/路由/归因/计量）。
+    const kbAskMatch = /^\/v1\/kb\/([^/]+)\/ask$/.exec(path);
+    if (kbAskMatch && req.method === 'POST') {
+      const kb = this.deps.kb;
+      if (!kb || !kb.ok) {
+        return this.writeJson(res, 503, JSON.stringify({
+          error: { message: '知识库未启用或不可用', type: 'kb_unavailable', param: null, code: 'kb_unavailable' },
+        }));
+      }
+      const body = await this.readBody(req, res);
+      if (body === undefined) return;
+      let kbId: string;
+      try {
+        kbId = decodeURIComponent(kbAskMatch[1]!);
+      } catch {
+        // M-03 修复：畸形百分号编码（如 /v1/kb/%/ask）会抛 URIError，此前被顶层 catch
+        // 兜成 500 + relay_internal_error —— 那是“客户端输入错”伪装成“服务端故障”。
+        return this.writeJson(res, 400, JSON.stringify({
+          error: { message: 'kbId 编码非法', type: 'invalid_request_error', param: 'kbId', code: 'invalid_kb_id' },
+        }));
+      }
+      if (!kb.getKb(kbId)) {
+        return this.writeJson(res, 404, JSON.stringify({
+          error: { message: `知识库不存在: ${kbId}`, type: 'not_found_error', param: null, code: 'kb_not_found' },
+        }));
+      }
+      // 解析请求体
+      let payload: Record<string, unknown>;
+      try {
+        payload = JSON.parse(Buffer.from(body).toString('utf8')) as Record<string, unknown>;
+      } catch {
+        return this.writeJson(res, 400, JSON.stringify({
+          error: { message: '请求体不是合法 JSON', type: 'invalid_request_error', param: null, code: 'invalid_json' },
+        }));
+      }
+      const question = String(payload['question'] ?? payload['query'] ?? '').trim();
+      const topK = Math.min(20, Math.max(1, Number(payload['topK'] ?? 5)));
+      if (!question) {
+        return this.writeJson(res, 400, JSON.stringify({
+          error: { message: 'question 必填（知识库问答）', type: 'invalid_request_error', param: 'question', code: 'question_required' },
+        }));
+      }
+      // ① 鉴权 + allowedKeys 校验：取调用者的 keyId，检查该 KB 是否允许这把 key 访问
+      const authHeader = headers['authorization'] ?? '';
+      const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+      let keyId: string | undefined;
+      if (bearer && this.deps.keys) {
+        const r = this.deps.keys.resolveSecret(bearer);
+        if (r.found && r.status === 'ok' && r.key) keyId = r.key.id;
+      }
+      const kbRec = kb.getKb(kbId);
+      if (kbRec && kbRec.allowedKeys !== '*') {
+        const allowed = kbRec.allowedKeys.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!keyId || !allowed.includes(keyId)) {
+          return this.writeJson(res, 403, JSON.stringify({
+            error: { message: `知识库 ${kbId} 不允许 key ${keyId ?? '(未识别)'} 访问`, type: 'permission_error', param: null, code: 'kb_forbidden' },
+          }));
+        }
+      }
+      const hits = kb.search(kbId, question, topK);
+      const context = hits.length > 0
+        ? hits.map((h, i) => `[${i + 1}] (${h.docTitle}) ${h.text}`).join('\n\n')
+        : '';
+      // 构造注入后的 messages：把检索命中塞进 system，保留原 messages
+      const origMessages = Array.isArray(payload['messages']) ? (payload['messages'] as unknown[]) : [];
+      const systemNote = context
+        ? '【以下是该知识库的检索结果，回答时优先引用，标注 [序号]】\n' + context
+        : '【该知识库未检索到相关内容，请基于你的知识回答，并说明知识库无命中】';
+      const newMessages: unknown[] = [];
+      // 若原 messages 已有 system 则追加到其后，否则插在最前
+      let systemSeen = false;
+      for (const m of origMessages) {
+        if (typeof m === 'object' && m !== null && (m as { role?: string }).role === 'system') systemSeen = true;
+        newMessages.push(m);
+      }
+      const sysMsg = { role: 'system', content: systemNote };
+      if (systemSeen) {
+        // 找到第一个 system 之后插入
+        const idx = newMessages.findIndex((m) => (typeof m === 'object' && m !== null && (m as { role?: string }).role === 'system'));
+        newMessages.splice(idx + 1, 0, sysMsg);
+      } else {
+        newMessages.unshift(sysMsg);
+      }
+      // 始终在末尾追加 question 作为 user 消息（客户端可能只传 question 不传 messages）
+      newMessages.push({ role: 'user', content: question });
+      const rewritten = { ...payload, messages: newMessages, _kb: { id: kbId, hits: hits.length, context } };
+      const newRaw = new Uint8Array(Buffer.from(JSON.stringify(rewritten)));
+      // 走引擎（把 path 改回 chat/completions，让鉴权/路由/计量照旧；但保留原始 path 在头里）
+      const controller = new AbortController();
+      this.inflight.add(controller);
+      const onClose = (): void => { if (!res.writableEnded) controller.abort(); };
+      res.on('close', onClose);
+      // 与正常路径一致：起 heartbeat + 不在 writeResult 前提前 abort controller
+      const heartbeat = this.startStreamHeartbeat(res, '/v1/chat/completions', newRaw);
+      try {
+        const result = await this.deps.engine.handle({
+          method: 'POST',
+          path: '/v1/chat/completions',
+          headers: { ...headers, 'x-kb-id': kbId, 'x-kb-hits': String(hits.length) },
+          rawBody: newRaw,
+          signal: controller.signal,
+          requestId,
+        });
+        heartbeat.stop();
+        await this.writeResult(res, result, requestId, heartbeat.committed);
+      } finally {
+        heartbeat.dispose();
+        this.inflight.delete(controller);
+        res.removeListener('close', onClose);
+      }
+      this.deps.logger.debug('http.kb_ask', { requestId, kbId, hits: hits.length });
+      return;
+    }
+
+    /* ---------- 协议入站适配（批次4，opt-in）---------- */
+    // 仅当显式开启时生效（缺省关闭 = 零回归）。把 Anthropic/Gemini 客户端请求互译为
+    // OpenAI Chat 请求，复用既有引擎链路（鉴权/预检/路由/归因/计量），响应再回写原生协议。
+    const inbound = this.deps.config.server.inboundAdapters;
+    if (inbound?.anthropic && path === '/v1/messages' && req.method === 'POST') {
+      return this.relayInbound(res, req, headers, requestId, path, 'anthropic');
+    }
+    if (inbound?.gemini && req.method === 'POST' && /^\/v1\/models\/[^/]+:generateContent$/.test(path)) {
+      return this.relayInbound(res, req, headers, requestId, path, 'gemini');
+    }
+
+    /* ---------- 业务端点 ---------- */
+    // 注意：入站适配是 opt-in 的。未开启时对应端点**不能**留在 supported 里，
+    // 否则请求会掉进 OpenAI 主链路 —— Anthropic 的顶层 system / content 块会被静默丢弃，
+    // 响应还会以 OpenAI 形状返回 200（客户端解析失败），同时白烧一次上游配额。
+    // 正确做法：显式 404 + 告诉用户打开哪个开关（与 Gemini 端点行为一致）。
+    const supported = ['/v1/chat/completions', '/v1/embeddings', '/v1/completions', '/v1/responses'];
+    if (inbound?.anthropic) supported.push('/v1/messages');
+    if (!supported.includes(path)) {
+      const hint = disabledInboundHint(path, inbound);
+      return this.writeJson(
+        res,
+        404,
+        JSON.stringify({
+          error: {
+            message: `未知端点 ${path}。${hint ? hint + '。' : ''}支持的端点: ${supported.join(', ')}`,
+            type: 'invalid_request_error',
+            param: null,
+            code: 'unknown_endpoint',
+          },
+        }),
+      );
+    }
+
+    if (req.method !== 'POST') {
+      return this.writeJson(
+        res,
+        405,
+        JSON.stringify({
+          error: {
+            message: `${path} 只接受 POST，收到 ${req.method}`,
+            type: 'invalid_request_error',
+            param: null,
+            code: 'method_not_allowed',
+          },
+        }),
+      );
+    }
+
+    const body = await this.readBody(req, res);
+    if (body === undefined) return; // 已响应（超限/错误）
+
+    const controller = new AbortController();
+    this.inflight.add(controller);
+    const onClose = (): void => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.on('close', onClose);
+
+    const heartbeat = this.startStreamHeartbeat(res, path, body);
+    try {
+      const result = await this.deps.engine.handle({
+        method: req.method,
+        path,
+        headers,
+        rawBody: body,
+        signal: controller.signal,
+        requestId,
+      });
+      heartbeat.stop();
+      await this.writeResult(res, result, requestId, heartbeat.committed);
+      this.deps.logger.debug('http.done', {
+        requestId,
+        path,
+        status: result.status,
+        durationMs: Date.now() - startedAt,
+        kind: result.kind,
+      });
+    } finally {
+      heartbeat.dispose();
+      this.inflight.delete(controller);
+      res.removeListener('close', onClose);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+
+  private setCommonHeaders(res: ServerResponse, requestId: string): void {
+    res.setHeader('x-request-id', requestId);
+    res.setHeader('x-relay-version', RELAY_VERSION);
+  }
+
+  private async readBody(req: IncomingMessage, res: ServerResponse): Promise<Uint8Array | undefined> {
+    const limit = this.deps.config.server.maxBodyBytes;
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let rejected = false;
+    let drained = 0;
+    try {
+      for await (const chunk of req) {
+        const buf = chunk as Buffer;
+        if (rejected) {
+          /*
+           * 已经回了 413：剩余 body 继续读取并丢弃（不缓存），这样才能让
+           * 413 响应真正冲刷到客户端。这里同样设硬上限，避免恶意客户端
+           * 用超长 body 无限占住连接；超过就断开。
+           */
+          drained += buf.byteLength;
+          if (drained > limit * 4 + 1_048_576) {
+            req.destroy();
+            break;
+          }
+          continue;
+        }
+        total += buf.byteLength;
+        if (total > limit) {
+          rejected = true;
+          chunks.length = 0;
+          /*
+           * 关键顺序：**先声明关闭连接，再写 413**，且不销毁 req。
+           * 旧实现直接 `req.destroy()`，socket 被立刻拆掉，客户端收到的是
+           * ECONNRESET（curl 只见 `HTTP/1.1 100 Continue`），根本读不到 413
+           * 和 relay_attribution —— 等于"超限"这个事实对调用方不可见。
+           */
+          res.setHeader('connection', 'close');
+          this.writeJson(
+            res,
+            413,
+            JSON.stringify({
+              error: {
+                message: `请求体超过网关上限 ${limit} 字节`,
+                type: 'request_too_large',
+                param: null,
+                code: 'request_too_large',
+                relay_attribution: {
+                  failure_reason: 'invalid_request',
+                  suggested_next: { action: 'reduce_context' },
+                  recoverable: true,
+                  upstream: 'relay',
+                  confidence: 1,
+                },
+              },
+            }),
+          );
+          continue;
+        }
+        chunks.push(buf);
+      }
+    } catch {
+      if (!rejected && !res.headersSent) this.writeJson(res, 400, JSON.stringify({ error: { message: '读取请求体失败', type: 'invalid_request_error', code: 'body_read_failed' } }));
+      return undefined;
+    }
+    if (rejected) return undefined;
+    return new Uint8Array(Buffer.concat(chunks));
+  }
+
+  private async writeResult(res: ServerResponse, result: EngineResult, requestId: string, earlyCommitted = false): Promise<void> {
+    if (result.kind === 'json') {
+      if (earlyCommitted) {
+        /*
+         * 已经以 SSE 200 提前提交，HTTP 状态码改不了了。此时才失败的请求
+         * （通常是上游在宽限之后才报错）只能用一个 SSE 错误帧告知客户端，
+         * 然后收尾。这是提前提交的已知代价，记一条 warn 便于对账。
+         */
+        this.deps.logger.warn('http.stream_early_commit_error', { requestId, status: result.status });
+        if (!res.writableEnded && !res.destroyed) {
+          res.write('data: ' + result.body + '\n\n');
+          res.end();
+        }
+        return;
+      }
+      for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.writeHead(result.status);
+      res.end(result.body);
+      return;
+    }
+    await this.writeStream(res, result, requestId, earlyCommitted);
+  }
+
+  /** 提取 Gemini 路径中的模型名（/v1/models/{model}:generateContent） */
+  private modelFromGeminiPath(path: string): string {
+    const m = /^\/v1\/models\/(.+):generateContent$/.exec(path);
+    if (!m) return '';
+    try {
+      return decodeURIComponent(m[1]!);
+    } catch {
+      return m[1]!;
+    }
+  }
+
+  /**
+   * 协议入站适配（批次4 · opt-in）：Anthropic/Gemini 客户端 → OpenAI 链路 → 回写原生协议。
+   *
+   * 边界（ADR-030）：只支持**非流式**；流式请求显式 400（不静默降级）；不支持字段由
+   * adapters 抛 `UnsupportedFieldError` → 400。转译后复用 `engine.handle('/v1/chat/completions')`，
+   * 因此鉴权/预检/路由/归因/计量口径与 OpenAI 入口**完全一致**（ADR-011）。
+   */
+  private async relayInbound(
+    res: ServerResponse,
+    req: IncomingMessage,
+    headers: Record<string, string>,
+    requestId: string,
+    path: string,
+    proto: 'anthropic' | 'gemini',
+  ): Promise<void> {
+    const body = await this.readBody(req, res);
+    if (body === undefined) return;
+    const fail = (status: number, message: string, code: string): void => {
+      this.writeJson(res, status, JSON.stringify({ error: { message, type: 'invalid_request_error', param: null, code } }));
+    };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(Buffer.from(body).toString('utf8'));
+    } catch {
+      return fail(400, '请求体不是合法 JSON', 'invalid_json');
+    }
+    if ((parsed as { stream?: unknown })?.stream === true) {
+      return fail(400, `${proto} 入站适配当前仅支持非流式（stream:true 不受支持）`, 'stream_not_supported');
+    }
+    let oaiBody: unknown;
+    try {
+      oaiBody = proto === 'anthropic'
+        ? anthropicToOpenAI(parsed as never)
+        : geminiToOpenAI(parsed as never, this.modelFromGeminiPath(path));
+    } catch (e) {
+      const msg = e instanceof UnsupportedFieldError || e instanceof Error ? e.message : String(e);
+      return fail(400, msg, 'adapter_unsupported');
+    }
+    const controller = new AbortController();
+    this.inflight.add(controller);
+    const onClose = (): void => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.on('close', onClose);
+    try {
+      const result = await this.deps.engine.handle({
+        method: 'POST',
+        path: '/v1/chat/completions',
+        headers,
+        rawBody: Buffer.from(JSON.stringify(oaiBody), 'utf8'),
+        signal: controller.signal,
+        requestId,
+      });
+      if (result.kind !== 'json') {
+        return fail(502, `${proto} 入站适配未预期地收到流式结果`, 'adapter_unexpected_stream');
+      }
+      const oai = JSON.parse(result.body) as never;
+      const out = proto === 'anthropic' ? openAIToAnthropicMessage(oai) : openAIToGemini(oai);
+      return this.writeJson(res, result.status, JSON.stringify(out));
+    } finally {
+      this.inflight.delete(controller);
+      res.removeListener('close', onClose);
+    }
+  }
+
+  private async writeStream(res: ServerResponse, result: EngineStream, requestId: string, earlyCommitted = false): Promise<void> {
+    if (!earlyCommitted) {
+      for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+      res.writeHead(result.status);
+    }
+
+    const reader = result.stream.getReader();
+    let bytes = 0;
+    let aborted = false;
+    let clientGone = false;
+    try {
+      for (;;) {
+        /*
+         * 客户端已经断开就**立刻停手**（2026-09-14 审计实测的 P0）。
+         *
+         * 老代码只有下面那个 `await drain`，而客户端断开时 `res.write()` 返回 false
+         * 且 **'drain' 永远不会触发** → 这个 await 永久挂起 → 请求既不进计量也不进轨迹、
+         * `finally` 永不执行 → inflight 单调上涨、上游流一直读到尾（我们白付钱）。
+         * 所以：① 每轮先看 res 还在不在；② 等 drain 时同时监听 close/error，断开即返回。
+         */
+        if (res.destroyed || res.writableEnded) {
+          clientGone = true;
+          aborted = true;
+          break;
+        }
+        // **整体超时硬截止**（审计 D-P0-2）：首块之后本来没有任何看门狗，
+        // 上游"头之后慢慢流"就能无限期挂住。到点就截断并记 aborted，
+        // 否则面板上的"单次请求总上限"只是假话。
+        if (result.deadlineAt !== undefined && Date.now() > result.deadlineAt) {
+          aborted = true;
+          this.deps.logger.warn('http.stream_deadline', {
+            requestId,
+            deadlineMs: this.deps.config.server.upstreamTimeoutMs,
+          });
+          break;
+        }
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          bytes += value.byteLength;
+          if (!res.write(Buffer.from(value))) {
+            await new Promise<void>((resolve) => {
+              const done = (): void => {
+                res.off('drain', done);
+                res.off('close', done);
+                res.off('error', done);
+                resolve();
+              };
+              res.once('drain', done);
+              res.once('close', done);
+              res.once('error', done);
+            });
+          }
+        }
+      }
+      // 截止截断：客户端还在，**优雅收尾**（EOF 但没有 [DONE] = 截断信号，SSE 客户端能识别）。
+      // 客户端已走：没人听，直接 destroy。
+      if (clientGone) {
+        if (!res.destroyed) res.destroy();
+      } else {
+        // REQ-03（批次4）：上游中途断连在 undici 下表现为 done（静默）——server 无法自行判定，
+        // 必须问 engine「是否见到 [DONE]」。不完整且分层允许时注入 error 帧，否则正常结束。
+        // 正常流 sawDone=true → 走 res.end()，**字节完全不变**（红线 1）。
+        const complete = result.isStreamComplete
+          ? await Promise.race([
+              result.isStreamComplete().catch(() => true),
+              new Promise<boolean>((resolve) => {
+                // ⚠️ 必须有超时兜底：上游被截断/停摆时 tee 旁路可能不 resolve，
+                // 无兜底会让收尾永久挂起（回归实测：既有「流式整体超时」用例因此失败）。
+                // 100ms 后视为完整（走既有 res.end()，行为与改动前一致）。
+                const t = setTimeout(() => resolve(true), 100);
+                (t as { unref?: () => void }).unref?.();
+              }),
+            ])
+          : true;
+        if (!complete && result.midStreamErrorFrame && !res.destroyed && !res.writableEnded) {
+          try {
+            res.write(result.midStreamErrorFrame);
+            res.write('data: [DONE]\n\n');
+            res.end();
+          } catch {
+            /* ignore：注入失败不影响收尾 */
+          }
+        } else if (!res.writableEnded) {
+          res.end();
+        }
+      }
+    } catch (err) {
+      aborted = true;
+      this.deps.logger.warn('http.stream_error', { requestId, error: err instanceof Error ? err.message : String(err) });
+      // REQ-03（批次4）：上游中途失败、且客户端仍在 → 注入 SSE error 帧（engine 按分层预构造）。
+      // free 层（attribution=off）无帧 → 保持原样。客户端已走则无人接收 → 原样 destroy。
+      // 注入只发生在**失败路径**，正常结束路径不受影响（红线 1）。
+      if (!clientGone && !res.destroyed && !res.writableEnded && result.midStreamErrorFrame) {
+        try {
+          res.write(result.midStreamErrorFrame);
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } catch {
+          /* ignore：注入失败不影响收尾 */
+        }
+      } else if (!res.writableEnded) {
+        res.destroy();
+      }
+    } finally {
+      try {
+        // 客户端走了就别再拉着上游流跑了（否则我们继续为拿不到的 token 付费）。
+        // ⚠️ **不能 await**：这支可能是 tee 的一支，而 tee 支的 cancel 在"源没数据"时
+        // 永不 settle（同 client.ts 里那处，审计实测过）。发起即可，不等它。
+        if (aborted) void Promise.resolve(reader.cancel()).catch(() => undefined);
+      } catch {
+        /* ignore */
+      }
+      try {
+        reader.releaseLock();
+      } catch {
+        /* ignore */
+      }
+      try {
+        // await：流式记账要等旁路 transcript 解析完（见 EngineStream.onEnd 的说明）
+        await result.onEnd({ bytes, aborted, transcriptChars: 0 });
+      } catch (err) {
+        this.deps.logger.warn('http.stream_onend_failed', { requestId, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+  }
+
+  /**
+   * 流式请求的"提前提交 + 心跳"。
+   *
+   * 只在配置开启（streamCommitGraceMs > 0）且客户端确实要流式时生效：
+   * 等待超过宽限仍未拿到上游内容，就先提交 200 + SSE 头，再周期性写
+   * `: keepalive` 注释行，避免客户端/中间代理由"长时间零字节"判死。
+   * 引擎返回后调用 stop()，在 finally 里再 dispose()（幂等）。
+   */
+  private startStreamHeartbeat(
+    res: ServerResponse,
+    path: string,
+    body: Uint8Array,
+  ): { committed: boolean; stop: () => void; dispose: () => void } {
+    const grace = this.deps.config.server.streamCommitGraceMs ?? 0;
+    const disabled = { committed: false, stop: (): void => undefined, dispose: (): void => undefined };
+    if (grace <= 0 || !this.isStreamRequest(path, body)) return disabled;
+
+    const intervalMs = Math.max(1_000, this.deps.config.server.streamHeartbeatMs ?? 5_000);
+    let committed = false;
+    let hbTimer: NodeJS.Timeout | undefined;
+    let graceTimer: NodeJS.Timeout | undefined = setTimeout(() => {
+      if (res.headersSent || res.destroyed || res.writableEnded) return;
+      res.setHeader('content-type', 'text/event-stream; charset=utf-8');
+      res.setHeader('cache-control', 'no-cache, no-transform');
+      res.setHeader('connection', 'keep-alive');
+      res.setHeader('x-accel-buffering', 'no');
+      res.writeHead(200);
+      res.write(': relay-waiting\n\n');
+      committed = true;
+      hbTimer = setInterval(() => {
+        if (res.destroyed || res.writableEnded) return;
+        res.write(': keepalive\n\n');
+      }, intervalMs);
+      hbTimer.unref();
+    }, grace);
+    graceTimer.unref();
+
+    const clear = (): void => {
+      if (graceTimer) {
+        clearTimeout(graceTimer);
+        graceTimer = undefined;
+      }
+      if (hbTimer) {
+        clearInterval(hbTimer);
+        hbTimer = undefined;
+      }
+    };
+    return {
+      get committed(): boolean {
+        return committed;
+      },
+      stop: clear,
+      dispose: clear,
+    };
+  }
+
+  /** 只有请求体里 stream:true 的才是 SSE；非流式没有"提前提交"的空间。 */
+  private isStreamRequest(path: string, body: Uint8Array): boolean {
+    if (!path.startsWith('/v1/')) return false;
+    try {
+      const parsed = JSON.parse(Buffer.from(body).toString('utf8')) as { stream?: unknown };
+      return parsed !== null && typeof parsed === 'object' && parsed.stream === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 演示视频：支持 Range（浏览器拖动进度条必需）。
+   * 文件不存在时返回 404 文本，页面侧会显示"待上传"占位。
+   */
+  private serveJudgeVideo(req: IncomingMessage, res: ServerResponse): void {
+    if (!existsSync(JUDGE_VIDEO_FILE)) {
+      res.setHeader('content-type', 'text/plain; charset=utf-8');
+      res.writeHead(404);
+      res.end('演示视频尚未上传（放置到 data/judge-video.mp4 即可）');
+      return;
+    }
+    const size = statSync(JUDGE_VIDEO_FILE).size;
+    res.setHeader('content-type', 'video/mp4');
+    res.setHeader('accept-ranges', 'bytes');
+    const range = req.headers.range;
+    if (range) {
+      const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+      if (m) {
+        const start = m[1] ? Number(m[1]) : 0;
+        const end = m[2] ? Number(m[2]) : size - 1;
+        if (Number.isFinite(start) && Number.isFinite(end) && start <= end && end < size) {
+          res.setHeader('content-range', `bytes ${start}-${end}/${size}`);
+          res.setHeader('content-length', String(end - start + 1));
+          res.writeHead(206);
+          createReadStream(JUDGE_VIDEO_FILE, { start, end }).pipe(res);
+          return;
+        }
+      }
+    }
+    res.setHeader('content-length', String(size));
+    res.writeHead(200);
+    createReadStream(JUDGE_VIDEO_FILE).pipe(res);
+  }
+
+  private writeJson(res: ServerResponse, status: number, body: string): void {
+    if (res.headersSent) return;
+    res.setHeader('content-type', 'application/json; charset=utf-8');
+    res.writeHead(status);
+    res.end(body);
+  }
+}
+
+function normalizeHeaders(headers: http.IncomingHttpHeaders): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) {
+    if (v === undefined) continue;
+    out[k.toLowerCase()] = Array.isArray(v) ? v.join(',') : v;
+  }
+  return out;
+}
+
+/**
+ * 端点"存在但适配未开启"时的可执行提示（返回 undefined = 不是这种情况）。
+ *
+ * 与"完全不认识的端点"区分开：这里必须告诉调用方**开哪个开关**，
+ * 否则 Anthropic/Gemini 客户端只会看到一句"未知端点"，误以为自己拼错了路径。
+ */
+function disabledInboundHint(
+  path: string,
+  inbound: { anthropic?: boolean; gemini?: boolean } | undefined,
+): string | undefined {
+  if (path === '/v1/messages' && !inbound?.anthropic) {
+    return 'Anthropic 入站适配当前未开启（该端点不会按 Anthropic 契约解析），请设置 server.inboundAdapters.anthropic: true 后重启';
+  }
+  if (/^\/v1\/models\/[^/]+:generateContent$/.test(path) && !inbound?.gemini) {
+    return 'Gemini 入站适配当前未开启（该端点不会按 Gemini 契约解析），请设置 server.inboundAdapters.gemini: true 后重启';
+  }
+  return undefined;
+}
+

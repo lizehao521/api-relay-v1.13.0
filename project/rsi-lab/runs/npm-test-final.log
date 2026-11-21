@@ -1,0 +1,550 @@
+
+> rsi-lab@0.2.0 test
+> node --test "tests/**/*.test.mjs"
+
+TAP version 13
+# Subtest: finishAborted：超时不许抹账
+    # Subtest: 中止前已落盘 → 必须评一次、过一次对账、把判定写进账本并推进代数
+    ok 1 - 中止前已落盘 → 必须评一次、过一次对账、把判定写进账本并推进代数
+      ---
+      duration_ms: 39.1773
+      type: 'test'
+      ...
+    # Subtest: 中止且从未落盘 → 不评测、不动账本
+    ok 2 - 中止且从未落盘 → 不评测、不动账本
+      ---
+      duration_ms: 0.5112
+      type: 'test'
+      ...
+    # Subtest: 模型超时前写了一半 → 对账给出诚实结论而不是静默吞掉
+    ok 3 - 模型超时前写了一半 → 对账给出诚实结论而不是静默吞掉
+      ---
+      duration_ms: 4.3217
+      type: 'test'
+      ...
+    1..3
+ok 1 - finishAborted：超时不许抹账
+  ---
+  duration_ms: 45.8647
+  type: 'suite'
+  ...
+# Subtest: JUDGMENT 四态映射
+    # Subtest: 全部有中文标签与样式类
+    ok 1 - 全部有中文标签与样式类
+      ---
+      duration_ms: 0.7922
+      type: 'test'
+      ...
+    1..1
+ok 2 - JUDGMENT 四态映射
+  ---
+  duration_ms: 2.1895
+  type: 'suite'
+  ...
+# Subtest: ledgerSummary（对真实账本）
+    # Subtest: 逐条结构完整且 Verify 通过
+    ok 1 - 逐条结构完整且 Verify 通过
+      ---
+      duration_ms: 0.5031
+      type: 'test'
+      ...
+    1..1
+ok 3 - ledgerSummary（对真实账本）
+  ---
+  duration_ms: 0.673
+  type: 'suite'
+  ...
+# Subtest: getSummary 字段暴露
+    # Subtest: 判定与里程碑已暴露给前端
+    ok 1 - 判定与里程碑已暴露给前端
+      ---
+      duration_ms: 17.6239
+      type: 'test'
+      ...
+    # Subtest: 空目录返回骨架
+    ok 2 - 空目录返回骨架
+      ---
+      duration_ms: 1.6943
+      type: 'test'
+      ...
+    1..2
+ok 4 - getSummary 字段暴露
+  ---
+  duration_ms: 19.8686
+  type: 'suite'
+  ...
+# Subtest: roundSummary：失败轮也保留 verdict 留痕
+    # Subtest: 超时轮不许抹账
+    ok 1 - 超时轮不许抹账
+      ---
+      duration_ms: 0.4427
+      type: 'test'
+      ...
+    1..1
+ok 5 - roundSummary：失败轮也保留 verdict 留痕
+  ---
+  duration_ms: 0.9411
+  type: 'suite'
+  ...
+# Subtest: listRoundDirs
+    # Subtest: 全数字且升序
+    ok 1 - 全数字且升序
+      ---
+      duration_ms: 3.6501
+      type: 'test'
+      ...
+    1..1
+ok 6 - listRoundDirs
+  ---
+  duration_ms: 6.2586
+  type: 'suite'
+  ...
+# Subtest: getRoundDetail
+    # Subtest: 存在的轮返回 report/sse/eval 字段
+    ok 1 - 存在的轮返回 report/sse/eval 字段
+      ---
+      duration_ms: 2.5915
+      type: 'test'
+      ...
+    1..1
+ok 7 - getRoundDetail
+  ---
+  duration_ms: 3.0597
+  type: 'suite'
+  ...
+# Subtest: stableStringify 与 payloadHashOf 对键顺序不敏感
+    # Subtest: 键序不同哈希一致
+    ok 1 - 键序不同哈希一致
+      ---
+      duration_ms: 2.1519
+      type: 'test'
+      ...
+    1..1
+ok 8 - stableStringify 与 payloadHashOf 对键顺序不敏感
+  ---
+  duration_ms: 4.2092
+  type: 'suite'
+  ...
+# Subtest: nextGeneration
+    # Subtest: 空态从 1 起，缺 generation 时回落到 manifest.generation，state 优先
+    ok 1 - 空态从 1 起，缺 generation 时回落到 manifest.generation，state 优先
+      ---
+      duration_ms: 0.872
+      type: 'test'
+      ...
+    1..1
+ok 9 - nextGeneration
+  ---
+  duration_ms: 1.0489
+  type: 'suite'
+  ...
+# Subtest: buildManifest
+    # Subtest: 产物收 src、判据指纹来自 test 目录、producer 固定
+    ok 1 - 产物收 src、判据指纹来自 test 目录、producer 固定
+      ---
+      duration_ms: 6.2789
+      type: 'test'
+      ...
+    # Subtest: 有上一代才算 diff，且新增判据标记 added
+    ok 2 - 有上一代才算 diff，且新增判据标记 added
+      ---
+      duration_ms: 3.4359
+      type: 'test'
+      ...
+    1..2
+ok 10 - buildManifest
+  ---
+  duration_ms: 19.9117
+  type: 'suite'
+  ...
+# Subtest: scoreOf
+    # Subtest: 只认 score 读数，failure 归零
+    ok 1 - 只认 score 读数，failure 归零
+      ---
+      duration_ms: 0.4533
+      type: 'test'
+      ...
+    1..1
+ok 11 - scoreOf
+  ---
+  duration_ms: 0.8989
+  type: 'suite'
+  ...
+# Subtest: decideAcceptance（judge 四态映射）
+    # Subtest: 正对照：产物变了且指标严格变好 → accept
+    ok 1 - 正对照：产物变了且指标严格变好 → accept
+      ---
+      duration_ms: 2.5271
+      type: 'test'
+      ...
+    # Subtest: 指标没变好 → 拒绝（not_improved）
+    ok 2 - 指标没变好 → 拒绝（not_improved）
+      ---
+      duration_ms: 0.4231
+      type: 'test'
+      ...
+    # Subtest: 一侧带分母另一侧没交 → refused
+    ok 3 - 一侧带分母另一侧没交 → refused
+      ---
+      duration_ms: 0.6811
+      type: 'test'
+      ...
+    1..3
+ok 12 - decideAcceptance（judge 四态映射）
+  ---
+  duration_ms: 4.1894
+  type: 'suite'
+  ...
+# Subtest: ledger 往复与链
+    # Subtest: saveLedger/loadLedger 往复一致
+    ok 1 - saveLedger/loadLedger 往复一致
+      ---
+      duration_ms: 20.9942
+      type: 'test'
+      ...
+    # Subtest: anchorGeneration 入链后 verifyChain ok，篡改即断
+    ok 2 - anchorGeneration 入链后 verifyChain ok，篡改即断
+      ---
+      duration_ms: 1.4509
+      type: 'test'
+      ...
+    # Subtest: 同代同 manifest 重记去重，同代异 manifest 拒绝
+    ok 3 - 同代同 manifest 重记去重，同代异 manifest 拒绝
+      ---
+      duration_ms: 0.7278
+      type: 'test'
+      ...
+    1..3
+ok 13 - ledger 往复与链
+  ---
+  duration_ms: 23.4838
+  type: 'suite'
+  ...
+# Subtest: MILESTONES 模板库
+    # Subtest: id 唯一，函数与测试文件成对
+    ok 1 - id 唯一，函数与测试文件成对
+      ---
+      duration_ms: 2.9015
+      type: 'test'
+      ...
+    1..1
+ok 14 - MILESTONES 模板库
+  ---
+  duration_ms: 4.6502
+  type: 'suite'
+  ...
+# Subtest: nextMilestone
+    # Subtest: 按顺序返回，已用的不再返回
+    ok 1 - 按顺序返回，已用的不再返回
+      ---
+      duration_ms: 0.5587
+      type: 'test'
+      ...
+    1..1
+ok 15 - nextMilestone
+  ---
+  duration_ms: 0.7789
+  type: 'suite'
+  ...
+# Subtest: hintFor
+    # Subtest: 返回语义提示且只认自己的源文件
+    ok 1 - 返回语义提示且只认自己的源文件
+      ---
+      duration_ms: 0.3873
+      type: 'test'
+      ...
+    1..1
+ok 16 - hintFor
+  ---
+  duration_ms: 0.7014
+  type: 'suite'
+  ...
+# Subtest: expandIfSaturated
+    # Subtest: 没满分且有未用模板 → 返回下一个；满分 → null；全用完 → null；无 state → null
+    ok 1 - 没满分且有未用模板 → 返回下一个；满分 → null；全用完 → null；无 state → null
+      ---
+      duration_ms: 0.306
+      type: 'test'
+      ...
+    1..1
+ok 17 - expandIfSaturated
+  ---
+  duration_ms: 0.5844
+  type: 'suite'
+  ...
+# Subtest: applyMilestone
+    # Subtest: 新靶子未出红 → 回滚并抛 milestone_failure
+    ok 1 - 新靶子未出红 → 回滚并抛 milestone_failure
+      ---
+      duration_ms: 20.7532
+      type: 'test'
+      ...
+    # Subtest: 提交失败 → 回滚并抛 milestone_failure，不记账
+    ok 2 - 提交失败 → 回滚并抛 milestone_failure，不记账
+      ---
+      duration_ms: 5.138
+      type: 'test'
+      ...
+    # Subtest: 出红且提交成功 → 记账：milestones/bestCommit/bestScore 更新
+    ok 3 - 出红且提交成功 → 记账：milestones/bestCommit/bestScore 更新
+      ---
+      duration_ms: 11.0267
+      type: 'test'
+      ...
+    # Subtest: 重复应用同一模板被拒
+    ok 4 - 重复应用同一模板被拒
+      ---
+      duration_ms: 0.5631
+      type: 'test'
+      ...
+    1..4
+ok 18 - applyMilestone
+  ---
+  duration_ms: 38.4959
+  type: 'suite'
+  ...
+# Subtest: SEMANTICS 语义表
+    # Subtest: 覆盖 stats.js 三函数语义
+    ok 1 - 覆盖 stats.js 三函数语义
+      ---
+      duration_ms: 1.0826
+      type: 'test'
+      ...
+    1..1
+ok 19 - SEMANTICS 语义表
+  ---
+  duration_ms: 4.9923
+  type: 'suite'
+  ...
+# Subtest: pendingTargets
+    # Subtest: 只认 src 下仍含 not implemented 的代码文件
+    ok 1 - 只认 src 下仍含 not implemented 的代码文件
+      ---
+      duration_ms: 4.6906
+      type: 'test'
+      ...
+    # Subtest: 干净目录返回空
+    ok 2 - 干净目录返回空
+      ---
+      duration_ms: 1.2452
+      type: 'test'
+      ...
+    1..2
+ok 20 - pendingTargets
+  ---
+  duration_ms: 6.2136
+  type: 'suite'
+  ...
+# Subtest: renderTaskPrompt
+    # Subtest: 文件与语义一一对应
+    ok 1 - 文件与语义一一对应
+      ---
+      duration_ms: 1.917
+      type: 'test'
+      ...
+    # Subtest: TASK_PROMPT 非空
+    ok 2 - TASK_PROMPT 非空
+      ---
+      duration_ms: 0.2382
+      type: 'test'
+      ...
+    1..2
+ok 21 - renderTaskPrompt
+  ---
+  duration_ms: 2.6226
+  type: 'suite'
+  ...
+# Subtest: evaluateSandbox 超时守卫
+    # Subtest: 真实评测沙箱：返回结构齐全且分数与 HEAD 一致（23/24）
+    ok 1 - 真实评测沙箱：返回结构齐全且分数与 HEAD 一致（23/24）
+      ---
+      duration_ms: 369.3983
+      type: 'test'
+      ...
+    1..1
+ok 22 - evaluateSandbox 超时守卫
+  ---
+  duration_ms: 370.03
+  type: 'suite'
+  ...
+# Subtest: sandboxDirty
+    # Subtest: 干净沙箱返回 false
+    ok 1 - 干净沙箱返回 false
+      ---
+      duration_ms: 66.6621
+      type: 'test'
+      ...
+    1..1
+ok 23 - sandboxDirty
+  ---
+  duration_ms: 67.1151
+  type: 'suite'
+  ...
+# Subtest: R1：结构门
+    # Subtest: 缺 producer / generation<1 / 产物空 / 指纹坏 → refused
+    ok 1 - 缺 producer / generation<1 / 产物空 / 指纹坏 → refused
+      ---
+      duration_ms: 2.2482
+      type: 'test'
+      ...
+    # Subtest: claim 超长与两代 producer 不一致 → refused
+    ok 2 - claim 超长与两代 producer 不一致 → refused
+      ---
+      duration_ms: 0.7819
+      type: 'test'
+      ...
+    # Subtest: 代际不增 → refused；缺席读数没带理由 → refused
+    ok 3 - 代际不增 → refused；缺席读数没带理由 → refused
+      ---
+      duration_ms: 2.063
+      type: 'test'
+      ...
+    1..3
+ok 24 - R1：结构门
+  ---
+  duration_ms: 7.0508
+  type: 'suite'
+  ...
+# Subtest: R2：产物指纹门
+    # Subtest: 指纹集完全相同 → refused（同字节换标签）
+    ok 1 - 指纹集完全相同 → refused（同字节换标签）
+      ---
+      duration_ms: 1.8399
+      type: 'test'
+      ...
+    1..1
+ok 25 - R2：产物指纹门
+  ---
+  duration_ms: 2.0562
+  type: 'suite'
+  ...
+# Subtest: R3：判据门
+    # Subtest: 指纹变了没交 diff → refused
+    ok 1 - 指纹变了没交 diff → refused
+      ---
+      duration_ms: 0.469
+      type: 'test'
+      ...
+    # Subtest: 判据放水（loosened）→ refused；指纹没变却报 diff → refused
+    ok 2 - 判据放水（loosened）→ refused；指纹没变却报 diff → refused
+      ---
+      duration_ms: 0.6304
+      type: 'test'
+      ...
+    1..2
+ok 26 - R3：判据门
+  ---
+  duration_ms: 1.768
+  type: 'suite'
+  ...
+# Subtest: R4：证据门
+    # Subtest: estimated/model_says 冒充证据 → refused
+    ok 1 - estimated/model_says 冒充证据 → refused
+      ---
+      duration_ms: 1.0188
+      type: 'test'
+      ...
+    # Subtest: 诚实缺席带理由 → undecidable；缺席没带理由 → refused
+    ok 2 - 诚实缺席带理由 → undecidable；缺席没带理由 → refused
+      ---
+      duration_ms: 0.6833
+      type: 'test'
+      ...
+    1..2
+ok 27 - R4：证据门
+  ---
+  duration_ms: 2.0909
+  type: 'suite'
+  ...
+# Subtest: R5：改进门
+    # Subtest: 指标没变好 → not_improved
+    ok 1 - 指标没变好 → not_improved
+      ---
+      duration_ms: 1.2408
+      type: 'test'
+      ...
+    # Subtest: 一侧带分母另一侧没交 → refused
+    ok 2 - 一侧带分母另一侧没交 → refused
+      ---
+      duration_ms: 0.7044
+      type: 'test'
+      ...
+    # Subtest: 两侧都没有读数 → undecidable
+    ok 3 - 两侧都没有读数 → undecidable
+      ---
+      duration_ms: 0.349
+      type: 'test'
+      ...
+    # Subtest: 方向 down（fail_count 降）也算改进
+    ok 4 - 方向 down（fail_count 降）也算改进
+      ---
+      duration_ms: 0.383
+      type: 'test'
+      ...
+    1..4
+ok 28 - R5：改进门
+  ---
+  duration_ms: 3.0215
+  type: 'suite'
+  ...
+# Subtest: 优先级：refused 压过一切
+    # Subtest: 既放水又冒充证据 → refused
+    ok 1 - 既放水又冒充证据 → refused
+      ---
+      duration_ms: 0.3397
+      type: 'test'
+      ...
+    1..1
+ok 29 - 优先级：refused 压过一切
+  ---
+  duration_ms: 0.4788
+  type: 'suite'
+  ...
+# Subtest: exitCodeOf 与四态对齐
+    # Subtest: improved=0 not_improved=1 refused=2 undecidable=3
+    ok 1 - improved=0 not_improved=1 refused=2 undecidable=3
+      ---
+      duration_ms: 0.2175
+      type: 'test'
+      ...
+    1..1
+ok 30 - exitCodeOf 与四态对齐
+  ---
+  duration_ms: 0.3173
+  type: 'suite'
+  ...
+# Subtest: R6：锚定与链
+    # Subtest: 锚定后链可验；同代异 manifest 重记被拒；链被篡改 Verify 不过
+    ok 1 - 锚定后链可验；同代异 manifest 重记被拒；链被篡改 Verify 不过
+      ---
+      duration_ms: 1.5925
+      type: 'test'
+      ...
+    # Subtest: judge 带 ledger 会把重记判成 refused
+    ok 2 - judge 带 ledger 会把重记判成 refused
+      ---
+      duration_ms: 0.6028
+      type: 'test'
+      ...
+    # Subtest: anchorBaseline 锚定基线并可重复确认
+    ok 3 - anchorBaseline 锚定基线并可重复确认
+      ---
+      duration_ms: 0.4492
+      type: 'test'
+      ...
+    1..3
+ok 31 - R6：锚定与链
+  ---
+  duration_ms: 2.8371
+  type: 'suite'
+  ...
+1..31
+# tests 53
+# suites 31
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 817.4499
+EXITCODE=0

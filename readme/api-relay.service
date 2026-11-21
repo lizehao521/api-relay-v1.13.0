@@ -1,0 +1,20 @@
+[Unit]
+Description=api-relay (OpenAI-compatible LLM gateway)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/api-relay
+EnvironmentFile=/root/api-relay/.relay.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/cli.js serve --config config/relay.yaml
+Restart=always
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=15
+NoNewPrivileges=true
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,96 @@
+# 组合方案：api-relay（底座）→ NVIDIA NIM（上游）
+# 本文件供「底座 + CodeLens 工作台」联合演示使用。
+# 密钥一律走环境变量 {ENV:...}，禁止明文写入。
+
+server:
+  host: 127.0.0.1
+  port: 8787
+  adminToken: "{ENV:RELAY_ADMIN_TOKEN}"
+  publicQuota: true
+  publicQuotaRemote: false
+  trustProxy: false
+  hideUpstream: true
+  upstreamTtfbTimeoutMs: 5000
+  upstreamTimeoutMs: 300000
+
+storage:
+  driver: sqlite
+  path: data/relay.db
+
+logLevel: info
+
+tiers:
+  free:
+    smartRouting: true
+  standard:
+    smartRouting: true
+  pro:
+    smartRouting: true
+
+providers:
+  - id: nvidia-1
+    label: NVIDIA NIM #1
+    protocol: openai
+    baseUrl: https://integrate.api.nvidia.com/v1
+    apiKey: "{ENV:NVIDIA_API_KEY_1}"
+    models: [bigcode/starcoder2-15b, fastino/gliner2-pii, google/gemma-3-12b-it, google/gemma-3-4b-it, google/gemma-4-31b-it, meta/muse-glimmer-30b, minimaxai/minimax-m3.1-flash, mistralai/mistral-large-4-1t-a52b, moonshotai/kimi-k3.1-pro, nvidia/ai-synthetic-video-detector, nvidia/cosmos-reason2-8b, nvidia/embed-qa-4, nvidia/ising-calibration-1.5-31b, nvidia/llama-3.1-nemoguard-8b-topic-control, nvidia/llama-3.1-nemotron-safety-guard-8b-v3, nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1, nvidia/llama-3.2-nv-embedqa-1b-v1, nvidia/nemotron-3-embed-1b, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, nvidia/nemotron-3-ultra-550b-a55b, nvidia/nemotron-3.5-bolt-e4b, nvidia/nemotron-3.5-content-safety, nvidia/nemotron-3.5-embed-1b, nvidia/nemotron-3.5-embed-8b, nvidia/nemotron-3.5-lightning-30b-a3b, nvidia/nemotron-3.5-super-vl-120b-a12b, nvidia/nv-embedqa-mistral-7b-v2, nvidia/nvclip, nvidia/riva-translate-4b-instruct-v2, poolside/laguna-xs-2.1, snowflake/arctic-embed-l, stepfun-ai/step-5-preview, z-ai/glm-5.3-flash]
+    weight: 1
+    priority: 10
+    tags: [cloud, nvidia]
+  - id: nvidia-2
+    label: NVIDIA NIM #2
+    protocol: openai
+    baseUrl: https://integrate.api.nvidia.com/v1
+    apiKey: "{ENV:NVIDIA_API_KEY_2}"
+    models: [bigcode/starcoder2-15b, fastino/gliner2-pii, google/gemma-3-12b-it, google/gemma-3-4b-it, google/gemma-4-31b-it, meta/muse-glimmer-30b, minimaxai/minimax-m3.1-flash, mistralai/mistral-large-4-1t-a52b, moonshotai/kimi-k3.1-pro, nvidia/ai-synthetic-video-detector, nvidia/cosmos-reason2-8b, nvidia/embed-qa-4, nvidia/ising-calibration-1.5-31b, nvidia/llama-3.1-nemoguard-8b-topic-control, nvidia/llama-3.1-nemotron-safety-guard-8b-v3, nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1, nvidia/llama-3.2-nv-embedqa-1b-v1, nvidia/nemotron-3-embed-1b, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning, nvidia/nemotron-3-ultra-550b-a55b, nvidia/nemotron-3.5-bolt-e4b, nvidia/nemotron-3.5-content-safety, nvidia/nemotron-3.5-embed-1b, nvidia/nemotron-3.5-embed-8b, nvidia/nemotron-3.5-lightning-30b-a3b, nvidia/nemotron-3.5-super-vl-120b-a12b, nvidia/nv-embedqa-mistral-7b-v2, nvidia/nvclip, nvidia/riva-translate-4b-instruct-v2, poolside/laguna-xs-2.1, snowflake/arctic-embed-l, stepfun-ai/step-5-preview, z-ai/glm-5.3-flash]
+    weight: 1
+    priority: 10
+    tags: [cloud, nvidia]
+
+modelCapabilities:
+  'moonshotai/kimi-k3.1-pro': { tools: true }
+  'minimaxai/minimax-m3.1-flash': { tools: true }
+  'nvidia/nemotron-3.5-lightning-30b-a3b': { tools: true }
+
+modelAliases:
+  default: moonshotai/kimi-k3.1-pro
+
+# kimi 优先：上游无响应/失败时自动降级到可用模型，避免客户端干等。
+# 链名即客户端请求的 model 名；第一阶与链名同名，第二、三阶为兜底。
+modelLadders:
+  'moonshotai/kimi-k3.1-pro': [moonshotai/kimi-k3.1-pro, minimaxai/minimax-m3.1-flash, nvidia/nemotron-3.5-lightning-30b-a3b]
+
+defaultProvider: nvidia-1
+
+clients:
+  - id: codelens-pro
+    label: CodeLens 工作台（试用通道）
+    key: "{ENV:RELAY_KEY_CODELENS}"
+    tier: pro
+    tenantId: codelens
+    enabled: true
+  - id: demo-free
+    label: 演示-免费层
+    key: "{ENV:RELAY_KEY_FREE:-sk-relay-free-demo}"
+    tier: free
+    tenantId: demo
+    enabled: true
+
+lossReduction:
+  precheck:
+    enabled: true
+    onBlock: reject
+    budgetUs: 3000
+  attribution:
+    enabled: true
+    includeEvidence: false
+    autoRetry: 0
+    backoffBaseMs: 400
+    backoffMaxMs: 8000
+  meter:
+    enabled: true
+    retentionDays: 30
+  trace:
+    enabled: true
+    ringSize: 500
+    persist: true

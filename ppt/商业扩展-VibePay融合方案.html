@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>api-relay 商业扩展：AI 权益中枢 × Vibe Pay</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1b212a; --border:#30363d;
+    --fg:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; --err:#f85149; --pur:#bc8cff; --pay:#1677ff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  html,body{ background:#000; color:var(--fg); font-family: system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .slide{ width:13.333in; height:7.5in; background:var(--bg); padding:0.72in 0.9in; position:relative; page-break-after:always; overflow:hidden; }
+  .slide:last-child{ page-break-after:auto; }
+  .foot{ position:absolute; left:0.9in; right:0.9in; bottom:0.4in; display:flex; justify-content:space-between;
+         color:var(--dim); font-size:13px; border-top:1px solid var(--border); padding-top:8px; }
+  .foot .v{ font-family:var(--mono); }
+  h1{ font-size:50px; font-weight:700; letter-spacing:-0.02em; }
+  h2{ font-size:31px; font-weight:650; letter-spacing:-0.01em; }
+  h2 .tag{ font-size:14px; color:var(--pur); border:1px solid var(--pur); border-radius:999px; padding:2px 10px; margin-left:12px; vertical-align:middle; }
+  h2 .tag.pay{ color:var(--pay); border-color:var(--pay); }
+  .lead{ color:var(--dim); font-size:17px; margin-top:8px; line-height:1.6; }
+  .bar{ width:56px; height:4px; background:var(--accent); border-radius:2px; margin:14px 0 20px; }
+  .bar.pay{ background:var(--pay); }
+  ul{ list-style:none; }
+  li{ font-size:16px; line-height:1.7; margin:8px 0; padding-left:22px; position:relative; }
+  li:before{ content:""; position:absolute; left:0; top:10px; width:8px; height:8px; border-radius:2px; background:var(--accent); }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .three{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+  .four{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .card .k{ font-size:12px; color:var(--dim); letter-spacing:.05em; }
+  .card .t{ font-size:19px; font-weight:650; margin:5px 0 7px; }
+  .card p{ font-size:14px; color:var(--fg); line-height:1.6; }
+  .accent{ color:var(--accent); } .ok{ color:var(--ok); } .warn{ color:var(--warn); } .err{ color:var(--err); } .pur{ color:var(--pur); } .dim{ color:var(--dim); } .pay{ color:var(--pay); }
+  .mono{ font-family:var(--mono); }
+  .quote{ border-left:3px solid var(--warn); background:var(--panel2); padding:12px 16px; border-radius:0 10px 10px 0; color:var(--dim); font-size:15px; line-height:1.65; }
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th,td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th{ color:var(--dim); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+  .flow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .flow .n{ background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:7px 11px; font-size:13px; }
+  .flow .a{ color:var(--accent); }
+  .badge{ display:inline-block; font-size:11px; color:var(--dim); border:1px solid var(--border); border-radius:999px; padding:2px 9px; margin-right:5px; }
+  .badge.ok{ color:var(--ok); border-color:var(--ok); }
+  .badge.plan{ color:var(--warn); border-color:var(--warn); }
+  .big{ font-family:var(--mono); font-size:34px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<!-- B1 封面 -->
+<section class="slide">
+  <div style="margin-top:1.05in">
+    <div class="mono dim" style="font-size:14px; letter-spacing:.34em;">B U S I N E S S &nbsp; E X T E N S I O N</div>
+    <h1 style="margin-top:12px;">从「卖 Token」到「卖场景」</h1>
+    <h2 style="font-weight:400; color:var(--dim); font-size:24px; margin-top:8px;">线下消费场景 × AI 权益中枢 × 云算力出图</h2>
+    <div class="bar pay" style="margin-top:24px;"></div>
+    <p style="font-size:21px;">AI 应用的下一道门槛，不是生成能力，是<b class="pay">把价值收回来</b></p>
+    <p class="dim" style="font-size:15px; margin-top:8px;">咖啡 / 休闲消费绑定 · 商家自供 Token · 可选云算力 · 一人一小时出图</p>
+    <p class="dim" style="margin-top:30px; font-size:15px;">队伍：<b class="mono">落幕</b>　｜　<span class="mono">v1.13.0</span>　｜　li1119489753@outlook.com</p>
+    <p class="pay" style="margin-top:6px; font-size:13px;">商业扩展篇（独立于 14 页主材料）· 2026-11-03</p>
+  </div>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">01 / 12</span></div>
+</section>
+
+<!-- B2 行业判断 -->
+<section class="slide">
+  <h2>行业判断 <span class="tag pay">Vibe Coding 正在变成 Vibe Business</span></h2>
+  <div class="bar pay"></div>
+  <div class="quote">Vibe Pay 的定位是「让每一个 AI 创作者，都能更轻松地把应用做成生意」：一个产品覆盖网页与 App，商品、订单、权益三类管理及后台默认提供，支持次数包 / 积分包 / 时长包 / 买断四种收费方式。<br><span style="font-size:12px;">—— 支付宝 AI 付 · Vibe Pay 产品页（2026-11 访问）</span></div>
+  <div class="three" style="margin-top:20px;">
+    <div class="card"><div class="k">变化 ①</div><div class="t">交付即收费</div><p>AI 应用从「能用」进入「值得付」，收费能力从附加项变成上线前置条件。</p></div>
+    <div class="card"><div class="k">变化 ②</div><div class="t">体验可以按时段</div><p>除 Token 次数包外，也可把云端图像生成做成「一人一小时」的体验权益。</p></div>
+    <div class="card"><div class="k">变化 ③</div><div class="t">权益需要被核销</div><p>「付了钱」不等于「服务已交付」，必须有权益查询、放行与使用后核销的闭环。</p></div>
+  </div>
+  <p class="dim" style="margin-top:22px; font-size:15px;">结论：支付解决「收钱」，<b style="color:var(--fg)">权益内核</b>解决「收钱之后怎么交付、怎么扣减、怎么对账」——这恰好是 api-relay 已有的能力。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">02 / 12</span></div>
+</section>
+
+<!-- B3 现有资产 -->
+<section class="slide">
+  <h2>我们手里已经有什么 <span class="tag">已完成并上线</span></h2>
+  <div class="bar"></div>
+  <div class="four">
+    <div class="card"><div class="k">资产 01</div><div class="t">鉴权与配额</div><p>分层 Key、租户隔离、按 token / 按金额双口径额度、402 精确拒绝。</p></div>
+    <div class="card"><div class="k">资产 02</div><div class="t">计量账本</div><p><span class="mono">meter</span> 逐请求落库，用量、成本、结果可归因到 key 与租户。</p></div>
+    <div class="card"><div class="k">资产 03</div><div class="t">权益凭证</div><p>M0 已实现额度池、静态券、原子核销、一券一 Key。</p></div>
+    <div class="card"><div class="k">资产 04</div><div class="t">多租户运营</div><p>租户 / RBAC / 套餐账单 / 对账导出，管理面 14 页签。</p></div>
+  </div>
+  <table style="margin-top:22px;">
+    <thead><tr><th>能力</th><th>代码位置</th><th>状态</th><th>商业含义</th></tr></thead>
+    <tbody>
+      <tr><td>Key 签发与额度</td><td class="mono">src/gateway/keys.ts</td><td><span class="badge ok">已上线</span></td><td>权益可以变成可用凭证</td></tr>
+      <tr><td>逐请求计量</td><td class="mono">src/store/index.ts · meter</td><td><span class="badge ok">已上线</span></td><td>按量结算的账本基础</td></tr>
+      <tr><td>券 / 额度池 / 核销</td><td class="mono">src/merchant/*.ts</td><td><span class="badge ok">M0 已完成</span></td><td>线下消费可折算为线上权益</td></tr>
+      <tr><td>账单 / 对账</td><td class="mono">src/admin/billing.ts</td><td><span class="badge ok">已上线</span></td><td>商户可分账、可复核</td></tr>
+    </tbody>
+  </table>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">03 / 12</span></div>
+</section>
+
+<!-- B4 缺口 -->
+<section class="slide">
+  <h2>缺的那一块：钱怎么进来 <span class="tag pay">收款与订单</span></h2>
+  <div class="bar pay"></div>
+  <div class="two">
+    <div>
+      <p style="font-size:16px; margin-bottom:10px;">api-relay 已经能回答「<b>这次调用该扣多少</b>」，但还不能回答「<b>这笔钱从哪来、对应哪笔订单</b>」。</p>
+      <ul>
+        <li>缺少<b>商品</b>：额度包 / 次数包 / 时长包的可售定义</li>
+        <li>缺少<b>订单</b>：支付成功回调、幂等、退款与撤销</li>
+        <li>缺少<b>权益放行</b>：支付完成 → 订单确认 → 对应 Token / 算力权益到账</li>
+        <li>缺少<b>算力调度</b>：GPU 会话隔离、排队、时限、自动释放与成本计量</li>
+        <li>缺少<b>结算对账</b>：平台代收 / 直收商户两种资金流</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:var(--pay);">
+      <div class="k">为什么不自建支付</div>
+      <div class="t pay">自建收款是最贵的那部分</div>
+      <p>网页支付、App 支付、签约、对账、退款、风控、发票——每一块都要独立建设与合规投入。Vibe Pay 的「智能收款套件」把这些默认提供，api-relay 只需对接<b>权益与交付</b>。</p>
+      <p class="dim" style="margin-top:10px; font-size:13px;">定位：不重复造支付轮子，把工程优势集中在「权益内核 + 计量结算」。</p>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:18px; font-size:14px;">对应 Vibe Pay 的四步接入：① 商品信息确认与收费配置 ② 付费入口与购买链接 ③ 购买后权益校验与访问放行 ④ 使用后权益核销。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">04 / 12</span></div>
+</section>
+
+<!-- B5 融合总览 -->
+<section class="slide">
+  <h2>融合方案 <span class="tag">权益中枢 + 收款基础设施</span></h2>
+  <div class="bar pay"></div>
+  <div class="flow" style="margin:6px 0 18px;">
+    <span class="n">用户 / 顾客</span><span class="a">→</span>
+    <span class="n pay">Vibe Pay 收款</span><span class="a">→</span>
+    <span class="n">回调验签 + 幂等</span><span class="a">→</span>
+    <span class="n">订单确认</span><span class="a">→</span>
+    <span class="n">权益中枢</span><span class="a">→</span>
+    <span class="n">商家 Token / 云算力会话</span><span class="a">→</span>
+    <span class="n">用量核销</span>
+  </div>
+  <table>
+    <thead><tr><th>Vibe Pay 能力</th><th>api-relay 承接方式</th><th>复用现状</th></tr></thead>
+    <tbody>
+      <tr><td>咖啡 / 休闲商品 + AI 体验</td><td>商品映射为 Token 额度或限时图像生成权益</td><td><span class="badge plan">规划</span></td></tr>
+      <tr><td>订单与支付结果</td><td>新增支付适配层：回调验签、订单表、幂等键</td><td><span class="badge plan">待实现</span></td></tr>
+      <tr><td>权益与供给</td><td>M0 券 / Key；后续接商家 Token 或云算力会话</td><td><span class="badge ok">Token M0 已有</span></td></tr>
+      <tr><td>权益校验与放行</td><td>Key 鉴权 + 额度判断（402 精确拒绝）</td><td><span class="badge ok">已上线</span></td></tr>
+      <tr><td>使用后核销</td><td>Token 按调用计量；算力按会话时长与任务计量</td><td><span class="badge plan">算力待接入</span></td></tr>
+    </tbody>
+  </table>
+  <p class="dim" style="margin-top:14px; font-size:14px;">原则：支付只负责「订单已支付」；<b style="color:var(--fg)">供给可由商家自备，也可选平台云算力</b>，权益发放与用量复算由服务端负责。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">05 / 12</span></div>
+</section>
+
+<!-- B6 单商家服务组合 -->
+<section class="slide">
+  <h2>围绕单商家场景的服务组合 <span class="tag pay">商品绑定 × 多来源供给</span></h2>
+  <div class="bar pay"></div>
+  <div class="two">
+    <div class="card" style="margin-bottom:12px;"><div class="k">场景入口 · 试点方向</div><div class="t">咖啡 / 休闲消费绑定 AI 体验</div><p>顾客购买饮品、桌游或包间等商品，扫码领取数字权益；商家卖原有商品，AI 体验帮助获客与留客。</p></div>
+    <div class="card"><div class="k">平台可选供给 · 规划</div><div class="t">云算力出图 · 一人一小时</div><p>按用户发放限时图像生成会话，候选云端 GPU 为 <b>A10</b>；按实际租用计费，结束或空闲自动释放。云厂商、区域、实例价格需实测确认。</p></div>
+  </div>
+  <div class="two" style="margin-top:12px;">
+    <div class="card"><div class="k">商家自供 · 可选</div><div class="t">商家接自己的 Token / 算力</div><p>商家使用自有模型账户、云 GPU 或店内设备；平台提供商品绑定、访问控制、权益核销与运营工具。</p></div>
+    <div class="card"><div class="k">不代供 · 可选</div><div class="t">只做网站与权益分发</div><p>商家暂不提供 AI 服务时，仍可使用门店活动页、扫码入口和权益管理；平台不承担模型或算力成本。</p></div>
+  </div>
+  <p class="dim" style="margin-top:16px; font-size:14px;">变现可从部署 / 软件服务费开始；代供 Token 或算力作为可选增值服务，按实际成本与使用量核算。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">06 / 12</span></div>
+</section>
+
+<!-- B7 已实现链路 -->
+<section class="slide">
+  <h2>权益 M0 已跑通 <span class="tag">仅指 Token 券链路</span></h2>
+  <div class="bar"></div>
+  <div class="flow" style="margin:4px 0 16px;">
+    <span class="n">采购额度</span><span class="a">→</span>
+    <span class="n">发券</span><span class="a">→</span>
+    <span class="n">领券换 Key</span><span class="a">→</span>
+    <span class="n">/v1/chat/completions</span><span class="a">→</span>
+    <span class="n">meter 归因</span><span class="a">→</span>
+    <span class="n">额度池扣减</span>
+  </div>
+  <div class="two">
+    <div>
+      <p style="font-size:15px; margin-bottom:8px;"><b class="ok">已实现的管理接口</b></p>
+      <table>
+        <tbody>
+          <tr><td class="mono">POST /admin/api/merchant/quota/update</td><td>采购额度</td></tr>
+          <tr><td class="mono">POST /admin/api/merchant/vouchers/issue</td><td>发券（防超发）</td></tr>
+          <tr><td class="mono">POST /admin/api/merchant/vouchers/claim</td><td>换 Key（原子占位）</td></tr>
+          <tr><td class="mono">GET&nbsp; /admin/api/merchant/redemptions</td><td>核销流水</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="border-color:var(--ok);">
+      <div class="k">工程验证</div>
+      <div class="t ok">505 项测试全通过</div>
+      <p>单元 / 集成 / E2E 三层覆盖，含 <b>20 并发同券只成功 1 次</b>、<b>进程重启后券 Key 仍可用</b>、营销链路故障不影响已签发 Key。</p>
+      <p class="dim" style="margin-top:8px; font-size:13px;">线上已部署：healthz 200，商户管理接口 200。</p>
+    </div>
+  </div>
+  <p class="dim" style="margin-top:14px; font-size:14px;">这是已实现的 Token 权益管理链路；<b style="color:var(--warn)">门店商品绑定、支付回调、A10 云算力会话均未接入</b>。「券只能领一次」，Key 按面额耗尽失效。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">07 / 12</span></div>
+</section>
+
+<!-- B8 支付接入架构 -->
+<section class="slide">
+  <h2>商品付款后，按供给来源交付 <span class="tag pay">目标架构 · 尚待接入</span></h2>
+  <div class="bar pay"></div>
+  <div class="flow" style="margin:2px 0 14px;">
+    <span class="n">咖啡 / 休闲商品</span><span class="a">→</span>
+    <span class="n pay">商家收款</span><span class="a">→</span>
+    <span class="n">服务端验签 + 幂等</span><span class="a">→</span>
+    <span class="n">订单与权益落库</span><span class="a">→</span>
+    <span class="n">核验用户时段 / 额度</span><span class="a">→</span>
+    <span class="n">商家 Token 或 A10 出图</span>
+  </div>
+  <div class="three">
+    <div class="card"><div class="k">支付与订单</div><div class="t">先做单商家直收</div><p>商品映射、订单表、服务端验签、金额核对、幂等与退款状态；浏览器跳转不能代替支付方回调验签。</p></div>
+    <div class="card"><div class="k">Token 供给</div><div class="t">商家自备或平台代供</div><p>商家 Key 只保存在服务端；用户端只拿受限权益凭证，按租户和模型记录实际消耗。</p></div>
+    <div class="card"><div class="k">算力供给</div><div class="t">独立 GPU 会话调度</div><p>A10 为候选实例；需建设排队、隔离、会话时限、成本计量与自动释放，不能由 api-relay M0 直接提供。</p></div>
+  </div>
+  <div class="quote" style="margin-top:16px;">关键不变量：回调验签和订单幂等通过后才发放权益；<b>算力会话按人、按时限授权，到期 / 空闲即释放</b>。M0 只有 Token 券，以上支付与 GPU 调度均为后续建设。</div>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">08 / 12</span></div>
+</section>
+
+<!-- B9 两种资金流 -->
+<section class="slide">
+  <h2>单商家供给与成本边界 <span class="tag pay">自供优先，代供可选</span></h2>
+  <div class="bar pay"></div>
+  <div class="two">
+    <div class="card" style="border-color:var(--pay);">
+      <div class="k">商家自供</div>
+      <div class="t pay">商家控制模型与成本</div>
+      <div class="flow" style="margin-top:6px;"><span class="n">顾客</span><span class="a">→</span><span class="n pay">商家收款</span><span class="a">→</span><span class="n">商家 Token / 店内设备</span></div>
+      <p style="margin-top:10px;">商家自己承担模型或设备成本；平台收取约定的软件、部署或运营服务费，不替商家垫付上游资源。</p>
+    </div>
+    <div class="card">
+      <div class="k">平台代供 · 可选</div>
+      <div class="t">按时段提供云端出图</div>
+      <div class="flow" style="margin-top:6px;"><span class="n">顾客</span><span class="a">→</span><span class="n pay">商家收款</span><span class="a">→</span><span class="n">平台云算力服务</span></div>
+      <p style="margin-top:10px;">可售「每人 1 小时」云端图像生成体验，A10 作候选配置；云资源费用、服务费及退款责任须单独约定。</p>
+    </div>
+  </div>
+  <ul style="margin-top:16px;">
+    <li><b>供给边界</b>：商家自供 Token、商家自供算力、平台云算力或暂不提供 AI，均作为可选择的服务模式。</li>
+    <li><b>安全边界</b>：供应商密钥留在服务端；GPU 会话按用户隔离并设置时限，结束后释放资源。</li>
+    <li><b>资金边界</b>：收款主体、退款及服务责任按支付渠道能力和合同确认；不把平台分账或合规状态当作已实现。</li>
+  </ul>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">09 / 12</span></div>
+</section>
+
+<!-- B10 商业测算 -->
+<section class="slide">
+  <h2>商业测算 <span class="tag">示意模型，非承诺</span></h2>
+  <div class="bar"></div>
+  <div class="three">
+    <div class="card"><div class="k">单店模型</div><div class="t">商品带动体验</div><p>咖啡 / 休闲商品引导顾客领取 AI 权益。先统计核销率、复购和新增客流；<b>赠送权益预算不等于获客成本</b>。</p></div>
+    <div class="card"><div class="k">云算力模型</div><div class="t">一人一小时出图</div><p>单会话贡献 = 售价 − A10 实际租用时长成本 − 存储 / 流量 / 支付等费用；按实际云厂商报价核算，不预设固定低价。</p></div>
+    <div class="card"><div class="k">平台模型</div><div class="t">软件服务 + 可选代供</div><p>自供模式收软件 / 部署服务费；代供模式再核算云算力或 Token 成本、利用率、退款与闲置损耗。</p></div>
+  </div>
+  <table style="margin-top:18px;">
+    <thead><tr><th>收入项</th><th>计价基础</th><th>可复算依据</th></tr></thead>
+    <tbody>
+      <tr><td>门店软件 / 部署费</td><td>按门店 / 服务周期</td><td>合同、门店数、服务记录</td></tr>
+      <tr><td>Token 代供</td><td>实际模型用量 × 约定单价</td><td><span class="mono">meter</span> + 上游账单</td></tr>
+      <tr><td>A10 算力体验</td><td>有效会话时长 × 实际租用单价</td><td>会话日志 + 云厂商账单</td></tr>
+      <tr><td>权益核销</td><td>实际领取 / 使用记录</td><td><span class="mono">redemption</span> + 订单关联</td></tr>
+    </tbody>
+  </table>
+  <p class="dim" style="margin-top:14px; font-size:13px;">A10 型号、云厂商、地区、计费粒度和实例利用率都会改变成本；先询价并实测单次任务，再定售价。以上不构成收益承诺。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">10 / 12</span></div>
+</section>
+
+<!-- B11 路线图 -->
+<section class="slide">
+  <h2>落地路线 <span class="tag">先内核，后收款</span></h2>
+  <div class="bar pay"></div>
+  <table>
+    <thead><tr><th>阶段</th><th>范围</th><th>验收</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td><b>M0 权益内核</b></td><td>额度池 / 静态券 / 换 Key / 核销 / 计量归因</td><td>505 测试 + 40 E2E；线上接口 200</td><td><span class="badge ok">已完成</span></td></tr>
+      <tr><td><b>M1 门店试点</b></td><td>商品绑定活动、顾客扫码、权益领取与核销</td><td>一家门店跑通「消费 → 领权益 → 使用」</td><td><span class="badge plan">下一步</span></td></tr>
+      <tr><td><b>M2 云算力出图</b></td><td>按人开通 1 小时会话；评估 A10 云实例、队列、隔离、超时释放与用量计费</td><td>实测可用性、单会话成本、利用率与毛利</td><td><span class="badge plan">规划</span></td></tr>
+      <tr><td><b>M3 支付接入</b></td><td>支付沙箱 → 订单表 → 回调验签 / 幂等 → 权益到账</td><td>小额支付跑通「付款→到账→权益→核销」</td><td><span class="badge plan">规划</span></td></tr>
+      <tr><td><b>M4 商户运营</b></td><td>商家自供 Token / 算力与平台代供并行；按来源核算成本、退款与对账</td><td>商家可选供给，订单和实际成本可复核</td><td><span class="badge plan">规划</span></td></tr>
+    </tbody>
+  </table>
+  <div class="quote" style="margin-top:18px;">接入原则：先沙箱、后生产；先小额、后放量；支付回调必须验签与幂等，<b>任何回调都不能直接签发 Key</b>。</div>
+  <p class="dim" style="margin-top:14px; font-size:14px;">当前已完成的是 Token 券权益侧；支付与 GPU 会话调度均为规划。先核实支付渠道与云算力供应商的接入资格、报价和服务边界，再进入试点。</p>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">11 / 12</span></div>
+</section>
+
+<!-- B12 收尾 -->
+<section class="slide">
+  <div style="margin-top:1.35in">
+    <h1 style="font-size:44px;">让每一次调用，<br>都能被定价、被交付、被复算</h1>
+    <div class="bar pay" style="margin-top:22px;"></div>
+    <div class="flow" style="margin-top:12px;">
+      <span class="n">权益内核 · 已完成</span>
+      <span class="n">计量账本 · 已上线</span>
+      <span class="n pay">商家自供 · 可选</span>
+      <span class="n">云算力出图 · 规划中</span>
+    </div>
+    <p style="margin-top:32px; font-size:17px;" class="ok">505 项测试全过 · 零运行时依赖 · 生产环境运行中</p>
+    <p class="dim" style="margin-top:8px; font-size:15px;">队伍 <b class="mono">落幕</b>　｜　<span class="mono">v1.13.0</span>　｜　li1119489753@outlook.com</p>
+    <p class="dim" style="margin-top:18px; font-size:12px;">参考：支付宝 AI 付 Vibe Pay 产品页 https://aipay.alipay.com/products/vibe-pay（2026-11 访问）。支付与 A10 云算力均为规划，型号与价格以供应商实际报价为准。</p>
+  </div>
+  <div class="foot"><span>api-relay · 商业扩展</span><span class="v">12 / 12</span></div>
+</section>
+
+</body>
+</html>
