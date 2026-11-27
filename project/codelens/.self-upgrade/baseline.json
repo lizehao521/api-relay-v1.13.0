@@ -227,7 +227,7 @@
     "src/services/rsi/rsi-overview.service.ts": "a1f3016c85369f2d4b9a95f9ee962a95e2537d0627c4f59aa7083b4f280de83b",
     "src/services/rsi/rules-contract.ts": "2a81a62a6b0ad5dd1b56b6977590e72af01b7add8156fdfaf9f205ee98411e57",
     "src/services/rsi/scheduler.service.ts": "fac1885a3dad1f9155649b6575b2bf3b3ac66b9ea47da31c5895fc46474e2fb7",
-    "src/services/eval/propose.ts": "dc6b2c25462ae9f2f8f3dbe74d31b7eb9cd37d4dd608fff476ec3315030d2d92",
+    "src/services/eval/propose.ts": "e1de07e16978038c7b190b6b93cc7d29441b1404547de0564470d668b6b5e119",
     "src/services/eval/runner.ts": "e25f21480247ba9665493212e24c9344f2e945d6010cd80dff4cde1436e29a5d",
     "src/services/eval/suites.ts": "08b62e895b42d7a91637c1d203e89fb943a55ce7989f15ee4d44bdb7dc4f66f2",
     "src/services/eval/task-picker.ts": "c6bfe14d3aa932d70b0842000839c0547af3f073c3edae5d39bd419101f01d2f",
