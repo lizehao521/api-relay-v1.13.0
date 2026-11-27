@@ -21,10 +21,12 @@ docker build -t codelens .
 docker run -d -p 8080:8080 codelens
 ```
 
+## 环境变量
+
 | 变量 | 说明 |
 |---|---|
 | PORT | 服务端口（默认 8080） |
-| HOST | 绑定地址（默认 127.0.0.1；容器/局域网需显式设 0.0.0.0） |
+| `HOST` | 绑定地址（默认 127.0.0.1；容器/局域网需显式设 0.0.0.0） |
 | ALLOWED_ORIGINS | CORS 白名单 |
 | LLM_SERVER_API_KEY | 服务端兜底 Key（试用/演示模式可选） |
 | AGENT_DB_PATH | SQLite 路径 |
