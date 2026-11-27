@@ -56,6 +56,9 @@ const ID_RE = /^[a-z][a-z0-9_]{2,31}$/;
 const NAME_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /** 源级变异算子。只替换第一处，保证变异体尽量仍可加载。 */
+// attribution=human 2026-11-27：原表 13 个算子全是比较/算术/逻辑类，零字符串处理类，
+// 导致 slugify 等纯字符串 reference 只产 2 个变异体（return→null + number+1），
+// 被 ≥3 门槛系统性误杀。补 4 个字符串处理算子，使字符串类 reference 也能产 ≥3 个。
 const MUTATORS: Array<{ name: string; find: RegExp; repl: string }> = [
   { name: '<=→<', find: /<=/, repl: '<' },
   { name: '>=→>', find: />=/, repl: '>' },
@@ -71,6 +74,10 @@ const MUTATORS: Array<{ name: string; find: RegExp; repl: string }> = [
   { name: 'Math.max→Math.min', find: /Math\.max/, repl: 'Math.min' },
   { name: 'Math.min→Math.max', find: /Math\.min/, repl: 'Math.max' },
   { name: 'return→return null', find: /return /, repl: 'return null; void ' },
+  { name: 'replace→match', find: /\.replace\(/, repl: '.match(' },
+  { name: 'trim→slice', find: /\.trim\(/, repl: '.slice(' },
+  { name: 'toLowerCase→toUpperCase', find: /\.toLowerCase\(/, repl: '.toUpperCase(' },
+  { name: 'String→Number', find: /\bString\(/, repl: 'Number(' },
 ];
 
 /** 数字字面量 +1：单独处理，因为要保留匹配到的原值。 */
