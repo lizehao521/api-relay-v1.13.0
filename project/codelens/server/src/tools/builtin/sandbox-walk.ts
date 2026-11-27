@@ -1,6 +1,6 @@
 /** Shared sandbox walker for code.search and fs.glob. */
 
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, stat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 /** Directories that must be skipped during traversal. */
@@ -59,7 +59,11 @@ export async function* walkFiles(
   } = {}
 ): AsyncGenerator<string> {
   const { maxDepth = MAX_DEPTH, glob, skipDirs = SKIP_DIRS } = options;
-  
+  // attribution=human 2026-11-27 P5: resolve sandboxRoot to realpath so path.relative
+  // uses a consistent long-name base (Windows 8.3 short name vs realpath long name mismatch
+  // caused 11 fs-glob/code-search tests to fail). See round1 self-inspection.
+  const sandboxRootResolved = await realpath(sandboxRoot).catch(() => sandboxRoot);
+
   async function* walk(currentDir: string, depth: number): AsyncGenerator<string> {
     if (depth > maxDepth) return;
     
@@ -89,7 +93,7 @@ export async function* walkFiles(
           continue;
         }
         // Return path relative to sandbox root
-        const relativePath = path.relative(sandboxRoot, fullPath).replace(/\\/g, '/');
+        const relativePath = path.relative(sandboxRootResolved, fullPath).replace(/\\/g, '/');
         yield relativePath;
       }
     }
