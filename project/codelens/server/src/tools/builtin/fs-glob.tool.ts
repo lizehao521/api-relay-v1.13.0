@@ -88,7 +88,10 @@ export const fsGlobTool: ToolDefinition = {
 
     // When path is a subdirectory, we need to match against paths relative to that subdirectory
     // but return paths relative to sandbox root
-    const rootRelative = path.relative(ctx.sandboxRoot, jail.absolutePath).replace(/\\/g, '/');
+    // attribution=human 2026-11-27 P5: use jail.sandboxRelative (path-jail internally uses a
+    // consistent realpath base) instead of path.relative(ctx.sandboxRoot, ...) which mismatched
+    // Windows 8.3 short name vs realpath long name. See round1 self-inspection.
+    const rootRelative = jail.sandboxRelative;
     const isSubdir = rootRelative !== '';
 
     for await (const file of walkFiles(jail.absolutePath, ctx.sandboxRoot)) {
